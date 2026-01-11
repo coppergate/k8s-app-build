@@ -1,0 +1,148 @@
+# source: https://github.com/open-telemetry/opentelemetry-operator/blob/main/README.md
+# https://opentelemetry.io/docs/collector/configuration/
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel
+  namespace: observability
+spec:
+  env:
+    - name: MY_POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
+  mode: deployment
+  hostNetwork: false
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 100s
+        limit_percentage: 75
+        spike_limit_percentage: 15
+      batch:
+        send_batch_size: 500
+        timeout: 15s
+    exporters:
+      debug:
+        verbosity: detailed
+      elasticsearch:
+        endpoint: http://elasticsearch-es-internal-http.elastic-system:8200
+        timeout: 30s # Increase the timeout value as needed
+    connectors:
+      spanmetrics:
+        histogram:
+          explicit:
+            buckets: [ 100us, 1ms, 2ms, 6ms, 10ms, 100ms, 250ms ]
+        dimensions:
+          - name: http.method
+            default: GET
+          - name: http.status_code
+        exemplars:
+          enabled: true
+        exclude_dimensions: [ 'status.code' ]
+        dimensions_cache_size: 1000
+        aggregation_temporality: "AGGREGATION_TEMPORALITY_CUMULATIVE"
+        metrics_flush_interval: 15s
+        events:
+          enabled: true
+          dimensions:
+            - name: exception.type
+            - name: exception.message
+        resource_metrics_key_attributes:
+          - service.name
+          - telemetry.sdk.language
+          - telemetry.sdk.name
+    service:
+      pipelines:
+        traces:
+          receivers: [ otlp ]
+          processors: [ memory_limiter ]
+          exporters: [ debug, spanmetrics, elasticsearch ]
+        metrics:
+          receivers: [ otlp, spanmetrics ]
+          processors: [ memory_limiter ]
+          exporters: [ debug, elasticsearch ]
+        logs:
+          receivers: [ otlp ]
+          processors: [ memory_limiter ]
+          exporters: [ debug, elasticsearch ]
+
+
+
+################################################
+# from the documentation it seems like we should be able to authenticate with the cert file and key
+# we were unable to get this going but it might be worth further investigation
+#??     api_key: /otel/ca/tls.key
+#     endpoints: [https://elasticsearch-es-http.elastic-system:9200]
+#       tls:
+#         ca_file: /otel/certificates/ca.crt
+#         cert_file: /otel/certificates/tls.crt
+#         key_file: /otel/certificates/tls.key
+#
+
+###
+## https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/mysqlreceiver
+## this can be added to setup a 'receiver' for the MySQL metrics. the metrics pipeline
+## could then be modified to take in the 'mysql' receiver data for the 'metrics'
+## receivers:
+##  mysql:
+##    endpoint: localhost:3306
+##    username: otel
+##    password: ${env:MYSQL_PASSWORD}
+##    database: otel
+##    collection_interval: 10s
+##    initial_delay: 1s
+##    statement_events:
+##      digest_text_limit: 120
+##      time_limit: 24h
+##      limit: 250
+##
+
+---
+# auto instrumentation setup to the otel-poc-collector
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name:
+    otel-test-instrumentation # this metadata name is referenced from location that are enrolling with 'auto-instrumentation' (see: test-app.values.yaml)
+    #    template:
+    #      metadata:
+    #        annotations:
+    #          instrumentation.opentelemetry.io/inject-dotnet: "observability/otel-test-instrumentation"
+  # note the 'namespace' must agree with the namespace this CR is created in.
+  namespace: observability
+spec:
+  exporter:
+    #    endpoint: otel-poc-collector.observability:4317 # set up with grpc ingress for the 'exporter' the app will use for opentelemetry
+    endpoint: http://otel-collector.observability:4318 # set up with http ingress for the 'exporter' the app will use for opentelemetry
+  # https://opentelemetry.io/docs/specs/otel/context/api-propagators/
+  propagators:
+    - tracecontext # https://www.w3.org/TR/trace-context/
+    - baggage # https://www.w3.org/TR/baggage/
+    - b3 # https://github.com/openzipkin/b3-propagation
+  # https://opentelemetry.io/docs/specs/otel/trace/sdk/#sampling
+  # sampling allows trace span recordings to be made on a 'representative' sampling as opposed to capturing all of the traces.
+  # see the above documentation for specifics.
+  # it may be the fact that for certain service classes we don't need to capture all of the traces to understand the call performance.
+  # it may make sense to sample the traces rather than record all of them.
+  sampler:
+    type:
+      parentbased_traceidratio # capture spans based on trace id (i.e. some percentage of parent spans will be captured based on the trace-id for the span)
+    # all of following child spans for the trace will be 'sampled'.
+    argument:
+      "1.0" # depending on the 'type' this can have different meanings.  for the 'traceidratio' type this represents the probability of a span being sampled.
+    # in this case approximately 3 in 4 trace ids will be sampled.
+---
+#  https://opentelemetry.io/docs/kubernetes/operator/automatic/
+# information regarding how the opentelemetry operator contributes to the auto instrumentation
+
+# https://opentelemetry.io/docs/languages/net/automatic/
+# information regarding specifics of setting up automatic-instrumentation for .Net services.
+

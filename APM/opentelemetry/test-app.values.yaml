@@ -1,0 +1,196 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-test-app-auto
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-test-app-auto
+      prometheus-monitor: "true"
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-dotnet: "observability/otel-test-instrumentation"  # this references the label from the instrumentation CR defined in the otel-collector.values.yaml
+      labels:
+        app: otel-test-app-auto # this label will be used by selectors when associating the deploy to a service/pod.
+        prometheus-monitor: "true"
+    spec:
+      containers:
+        - name: otel-test-app-auto
+          image: k8s/otel-test-microservice-auto:2.1.1  # for locally stored images, either specify a version number here or
+          imagePullPolicy: IfNotPresent    # or set the pull policy to 'IfNotPresent'... otherwise, if the 'latest' version is requested
+          #                                      the kube will try to 'pull' from the public container registry (and fail) 
+          ports: # define the application port to expose within the container
+            - name: web
+              containerPort: 8080
+          env:
+            #          - name: OTEL_LOG_LEVEL
+            #            value: "debug"
+            - name: OTEL_DOTNET_AUTO_FAIL_FAST_ENABLED  # remove this in production
+              value: "true"
+            - name: OTEL_SERVICE_NAME
+              value: otel-test-service-auto
+            - name: OTEL_DOTNET_AUTO_LOGS_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            - name: OTEL_DOTNET_AUTO_METRICS_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            - name: OTEL_DOTNET_AUTO_TRACES_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-test-app-manual
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-test-app-manual
+      prometheus-monitor: "true"
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-dotnet: "observability/otel-test-instrumentation"  # this references the label from the instrumentation CR defined in the otel-collector.values.yaml
+      labels:
+        app: otel-test-app-manual # this label will be used by selectors when associating the deploy to a service/pod.
+        prometheus-monitor: "true"
+    spec:
+      containers:
+        - name: otel-test-app-manual
+          image: k8s/otel-test-microservice-manual:2.2.1  # for locally stored images, either specify a version number here or
+          imagePullPolicy: IfNotPresent    # or set the pull policy to 'IfNotPresent'... otherwise, if the 'latest' version is requested
+          #                                      the kube will try to 'pull' from the public container registry (and fail) 
+          ports: # define the application port to expose within the container
+            - name: web
+              containerPort: 8080
+          env:
+            - name: OTEL_LOG_LEVEL
+              value: "debug"
+            #          - name: OTEL_SERVICE_NAME
+            #            value: otel-test-service-manual
+            - name: OTEL_DOTNET_AUTO_LOGS_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            - name: OTEL_DOTNET_AUTO_METRICS_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            - name: OTEL_DOTNET_AUTO_TRACES_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-poc-collector.observability:4317" # currently the otlp logging exporter seems to fail if this endpoint is not defined in the environment
+              # the in-line code can specify the url...  but it doesn't currently seem to work in the test code.
+
+
+#OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT	Maximum allowed attribute value size.	none	Stable
+#OTEL_ATTRIBUTE_COUNT_LIMIT	Maximum allowed span attribute count.	128	Stable
+#OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT	Maximum allowed attribute value size. Not applicable for metrics..	none	Stable
+#OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT	Maximum allowed span attribute count. Not applicable for metrics..	128	Stable
+#OTEL_SPAN_EVENT_COUNT_LIMIT	Maximum allowed span event count.	128	Stable
+#OTEL_SPAN_LINK_COUNT_LIMIT	Maximum allowed span link count.	128	Stable
+#OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT	Maximum allowed attribute per span event count.	128	Stable
+#OTEL_LINK_ATTRIBUTE_COUNT_LIMIT	Maximum allowed attribute per span link count.	128	Stable
+---
+
+# create a service descriptor for the auto-instrumented deployed app
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-test-service-auto
+spec:
+  selector:
+    app: otel-test-app-auto
+    prometheus-monitor: "true"
+  ports: # map the exposed container port to a kubernetes targetPort.
+    - name: "web"
+      targetPort: 8080
+      port: 8080
+  type: NodePort
+---
+
+# create a service descriptor for the manually instrumented deployed app
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-test-service-manual
+spec:
+  selector:
+    app: otel-test-app-manual
+    prometheus-monitor: "true"
+  ports: # map the exposed container port to a kubernetes targetPort.
+    - name: "web"
+      targetPort: 8080
+      port: 8080
+  type: NodePort
+
+---
+# as an alternate to the 'service' formulation we can define a 'pod' CR to create without a 'deploy'.
+# ###  apiVersion: v1
+# ###  kind: Pod
+# ###  metadata:
+# ###    name: otel-test-app-pod 
+# ###    annotations:
+# ###      instrumentation.opentelemetry.io/inject-dotnet: "observability/otel-test-instrumentation"
+# ###    labels:
+# ###      app: otlp-test-app-auto
+# ###  spec:
+# ###    containers:
+# ###    - name: otel-test-app-auto
+# ###      image: local/otel-test-service-auto:1.0.0   # for locally stored images, either specify a version number here or
+# ###      imagePullPolicy: IfNotPresent    # or set the pull policy to 'IfNotPresent'... otherwise, if the 'latest' version is requested
+# ###  #                                      the kube will try to 'pull' from the public container registry (and fail) 
+# ###      ports:
+# ###        - containerPort: 8080 # map the exposed container port to the pod
+# ###          protocol: TCP
+# ###      env:
+# ###        - name: OTEL_LOG_LEVEL
+# ###          value: "debug"
+# ###        - name: OTEL_DOTNET_AUTO_FAIL_FAST_ENABLED
+# ###          value: "true"
+# ###  # to make container images available for the k8s deploys, redirect the docker environment to 'minikube' and run the docker build
+# eval $(minikube docker-env)
+# docker build {path to Dockerfile} -t {image tag for identification (eg. 'local/otel-test-service-auto:1.0.0')}
+
+
+
+---
+#  set up a service monitor - used by the prometheus setup
+# determines what to monitor based on a 'service' selector 
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-test-app-service-monitor
+  labels:
+    prometheus-service-monitor: "true"
+spec:
+  selector:
+    matchLabels:
+      prometheus-monitor: "true" # matches the 'selector' from the service above
+  endpoints:
+    - port: web
+---
+# alternate to a 'service monitor', a 'pod monitor' 
+# determines what to monitor based on 'pod' selector
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: otel-test-app-auto-2
+  labels:
+    prometheus-pod-monitor: "true"
+spec:
+  selector:
+    matchLabels:
+      app: otel-test-app-auto-2 # matches the label from the pod that is created from the deploy
+  podMetricsEndpoints:
+    - port: web

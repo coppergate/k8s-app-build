@@ -1,0 +1,9 @@
+**/.vs/**
+**/.vshistory/**
+**/obj/**
+**/bin/**
+**/nppBackup/**
+*.log
+*.out
+/.idea/**
+*.orig

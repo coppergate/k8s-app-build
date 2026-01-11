@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-operator
+  labels:
+    environment: testing
+    purpose: otel-poc
+    owner: qsr-architects
+spec:
+  selector:
+    matchLabels:
+      environment: testing
+      purpose: otel-poc
+  template:
+    spec:
+      containers:
+        - name: jaeger-operator
+          image: jaegertracing/jaeger-operator
+          args: [ "start" ]
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          env:
+            - name: "LOG-LEVEL"
+              value: "debug"

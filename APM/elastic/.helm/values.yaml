@@ -1,0 +1,17 @@
+apmserver:
+  releaseName: #{apm-releaseName}
+  releaseNamespace: #{apm-releaseNamespace}
+  kibanaHost: #{apm-kibanaHost}
+  elasticHost: #{apm-elasticHost}
+  elasticHost: #{apm-elasticHost}
+resources:
+  limits:
+    cpu: #{cpuLimit}
+    memory: #{memoryLimit}
+  requests:
+    cpu: #{cpuRequest}
+    memory: #{memoryRequest}
+scaling:
+  minReplicas: #{scalingMinReplicas}
+  maxReplicas: #{scalingMaxReplicas}
+  cpuTarget: #{scalingCpuTarget}

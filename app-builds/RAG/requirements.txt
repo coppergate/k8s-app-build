@@ -1,0 +1,5 @@
+qdrant-client
+sentence-transformers
+torch
+numpy
+boto3

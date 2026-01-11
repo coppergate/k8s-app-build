@@ -1,0 +1,29 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: root-ca-certificate
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: "Hierocracy Root CA"
+  subject:
+    organizationalUnits:
+      - "IT Department"
+    organizations:
+      - "Hierocracy"
+    countries:
+      - "US"
+    localities:
+      - "Local"
+    provinces:
+      - "Local"
+  secretName: root-ca-secret
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

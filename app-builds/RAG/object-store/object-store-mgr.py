@@ -1,0 +1,91 @@
+import os
+import boto3
+import argparse
+from botocore.client import Config
+
+class ObjectStoreManager:
+    def __init__(self):
+        self.endpoint_url = os.getenv("S3_ENDPOINT")
+        self.access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        self.secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        self.bucket_name = os.getenv("BUCKET_NAME")
+
+        self.s3 = boto3.client(
+            's3',
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+            config=Config(signature_version='s3v4'),
+            region_name='us-east-1' # Match storageclass
+        )
+
+    def list_index(self):
+        """Lists the current index structure (objects in bucket)."""
+        print(f"Listing contents of bucket: {self.bucket_name}")
+        paginator = self.s3.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=self.bucket_name):
+            if 'Contents' in page:
+                for obj in page['Contents']:
+                    print(f"- {obj['Key']} ({obj['Size']} bytes)")
+            else:
+                print("Bucket is empty.")
+
+    def create_index_value(self, key, content=""):
+        """Creates a new index value (uploads a small file or placeholder)."""
+        print(f"Creating index value: {key}")
+        self.s3.put_object(Bucket=self.bucket_name, Key=key, Body=content)
+
+    def upload_directory(self, local_path, target_prefix=""):
+        """Uploads a directory from a local source into the object store."""
+        print(f"Uploading directory {local_path} to {self.bucket_name}/{target_prefix}")
+        for root, dirs, files in os.walk(local_path):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_file_path, local_path)
+                s3_key = os.path.join(target_prefix, relative_path).replace(os.sep, '/')
+                
+                print(f"Uploading {local_file_path} to {s3_key}")
+                self.s3.upload_file(local_file_path, self.bucket_name, s3_key)
+
+    def remove_index_values(self, keys):
+        """Removes one or more index values."""
+        if not keys:
+            return
+        print(f"Removing index values: {keys}")
+        delete_dict = {'Objects': [{'Key': k} for k in keys]}
+        self.s3.delete_objects(Bucket=self.bucket_name, Delete=delete_dict)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Manage Rook-Ceph Object Store for RAG")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # List command
+    subparsers.add_parser("list")
+
+    # Create command
+    create_parser = subparsers.add_parser("create")
+    create_parser.add_argument("key", help="Key to create")
+    create_parser.add_argument("--content", default="", help="Content of the object")
+
+    # Upload command
+    upload_parser = subparsers.add_parser("upload")
+    upload_parser.add_argument("path", help="Local directory path")
+    upload_parser.add_argument("--prefix", default="", help="S3 prefix")
+
+    # Remove command
+    remove_parser = subparsers.add_parser("remove")
+    remove_parser.add_argument("keys", nargs="+", help="Keys to remove")
+
+    args = parser.parse_args()
+    mgr = ObjectStoreManager()
+
+    if args.command == "list":
+        mgr.list_index()
+    elif args.command == "create":
+        mgr.create_index_value(args.key, args.content)
+    elif args.command == "upload":
+        mgr.upload_directory(args.path, args.prefix)
+    elif args.command == "remove":
+        mgr.remove_index_values(args.keys)
+    else:
+        parser.print_help()

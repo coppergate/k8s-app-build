@@ -1,0 +1,6 @@
+@pulsar_poc_HostAddress = http://localhost:5244
+
+GET {{pulsar_poc_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

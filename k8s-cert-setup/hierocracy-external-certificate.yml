@@ -1,0 +1,40 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hierocracy-external-certificate
+  namespace: test-tls-deploy
+spec:
+  secretName: hierocracy-external-tls
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days
+  subject:
+    organizations:
+      - "Hierocracy External"
+  commonName: "*.hierocracy.home"
+  dnsNames:
+    - "hierocracy.home"
+    - "*.hierocracy.home"
+    - "api.hierocracy.home"
+    - "admin.hierocracy.home"
+    - "app.hierocracy.home"
+    - "www.hierocracy.home"
+    - "external.hierocracy.home"
+    - "*.external.hierocracy.home"
+  ipAddresses:
+    - "192.16.192.1"
+    - "192.16.192.10"
+    - "192.16.192.11"
+    - "192.16.192.12"
+    - "192.16.192.20"
+    - "192.16.192.21"
+    - "192.16.192.22"
+    - "192.16.192.23"
+    - "192.16.192.100"
+    - "192.16.192.200"
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

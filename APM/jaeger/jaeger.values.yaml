@@ -1,0 +1,43 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: jaeger
+spec:
+  strategy: production
+  collector:
+    config:
+      extensions:
+        health_check:
+          port: 14269
+      maxReplicas: 5
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  query:
+    metricsStorage:
+      type: prometheus
+    options:
+      prometheus.server-url: "http://prometheus.observability:9090"
+      prometheus.query.normalize-calls: "true"
+      prometheus.query.normalize-duration: "true"
+      log-level: debug
+
+  storage:
+    type: elasticsearch
+    options:
+      es:
+        #        server-urls: https://elasticsearch-es-http.elastic-system.svc.cluster.local:9200 # <2>
+        server-urls: https://elasticsearch-es-http.elastic-system:9200 # <2>
+        index-prefix: otlp-trace-index
+        tls:
+          ca: /es/certificates/ca.crt
+    secretName: jaeger-secret # kubectl create secret generic jaeger-secret --namespace observability --from-literal=ES_PASSWORD=changeme --from-literal=ES_USERNAME=elastic
+  volumeMounts:
+    - name: certificates
+      mountPath: /es/certificates/
+      readOnly: true
+  volumes:
+    - name: certificates
+      secret:
+        secretName: elasticsearch-es-http-certs-public  #kubectl get secret elasticsearch-es-http-certs-public --namespace elastic-system -oyaml | grep -v '^\s*namespace:\s' | kubectl apply --namespace observability -f -

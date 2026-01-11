@@ -1,0 +1,31 @@
+# for UI exposed from 'observability
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otlp-observability-otel-collector-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx-ingress-class
+  #  tls:
+  #  - hosts:
+  #    - hegemon
+  #    secretName: otel-poc-tls
+  rules:
+    - http:
+        paths:
+          - path: /otel-4317
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-poc-collector
+                port:
+                  number: 4317
+          - path: /otel-4318
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-poc-collector
+                port:
+                  number: 4318
+
