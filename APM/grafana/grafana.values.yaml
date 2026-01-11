@@ -1,0 +1,97 @@
+# 
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  labels:
+    dashboards: "grafana"
+spec:
+  config:
+    log:
+      mode: "console"
+    auth:
+      disable_login_form: "false"
+    security:
+      admin_user: root
+      admin_password: secret
+#  ingress:
+#    spec:
+#      ingressClassName: nginx
+#      rules:
+#        - host: grafana.local.io
+#          http:
+#            paths:
+#              - backend:
+#                  service:
+#                    name: grafana-service
+#                    port:
+#                      number: 3000
+#                path: /
+#                pathType: Prefix
+#---                
+# datasources can be configured by adding yaml files to 
+# provisioning/datasources
+
+#datasources:
+#- name: Prometheus
+#  type: prometheus
+#  access: proxy
+#  # Access mode - proxy (server in the UI) or direct (browser in the UI).
+#  url: http://prometheus.observability:9090
+#  jsonData:
+#    httpMethod: POST
+#    manageAlerts: true
+#    prometheusType: Prometheus
+#    prometheusVersion: 2.44.0
+#    cacheLevel: 'High'
+#    disableRecordingRules: false
+#    incrementalQueryOverlapWindow: 10m
+#    exemplarTraceIdDestinations:
+#      # Field with internal link pointing to data source in Grafana.
+#      # datasourceUid value can be anything, but it should be unique across all defined data source uids.
+#      - datasourceUid: my_jaeger_uid
+#        name: traceID
+#
+#      # Field with external link.
+#      - name: traceID
+#        url: 'http://localhost:8089/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Jaeger%22,%7B%22query%22:%22$${__value.raw}%22%7D%5D'
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: grafanadashboard-sample
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  json: >
+    {
+      "id": null,
+      "title": "Simple Dashboard",
+      "tags": [],
+      "style": "dark",
+      "timezone": "browser",
+      "editable": true,
+      "hideControls": false,
+      "graphTooltip": 1,
+      "panels": [],
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {
+        "time_options": [],
+        "refresh_intervals": []
+      },
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": []
+      },
+      "refresh": "5s",
+      "schemaVersion": 17,
+      "version": 0,
+      "links": []
+    } 
+ 

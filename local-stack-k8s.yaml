@@ -1,0 +1,130 @@
+# disk volume claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    com.job.service: localstack-claim0
+  name: localstack-claim0
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
+---
+# service account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: localstack-account
+  labels:
+    com.job.service: localstack-service-account
+---
+# service
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    com.job.service: localstack-service
+  name: localstack-service
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  ports:
+    - name: "edge"
+      port: 4566
+      targetPort: 4566
+    - name: "es"
+      port: 4571
+      targetPort: 4571
+    - name: "ui"
+      port: 8080
+      targetPort: 8080
+  selector:
+    com.job.service: localstack-service
+status:
+  loadBalancer: {}
+---
+# deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    com.job.service: localstack-deployment
+  name: localstack-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      com.job.service: localstack-deployment
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        com.job.service: localstack-deployment
+    spec:
+      containers:
+        - env:
+            - name: DATA_DIR
+              value: ' '
+            - name: DEBUG
+              value: ' '
+            - name: DOCKER_HOST
+              value: tcp://127.0.0.1:2376
+            - name: HOST_TMP_FOLDER
+            - name: KINESIS_ERROR_PROBABILITY
+              value: ' '
+            - name: LAMBDA_EXECUTOR
+              value: ' '
+            - name: PORT_WEB_UI
+              value: ' '
+            - name: SERVICES
+              value: 'sqs'
+          image: localstack/localstack
+          imagePullPolicy: IfNotPresent
+          name: localstack-main
+          ports:
+            - name: edge
+              containerPort: 4566
+              protocol: TCP
+            - name: es
+              containerPort: 4571
+              protocol: TCP
+            - name: ui
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            httpGet:
+              path: /health
+              port: edge
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            httpGet:
+              path: /health
+              port: edge
+          resources: {}
+          volumeMounts:
+            - mountPath: /tmp/localstack
+              name: localstack-claim0
+      restartPolicy: Always
+      serviceAccountName: localstack-account
+      volumes:
+        - name: localstack-claim0
+          persistentVolumeClaim:
+            claimName: localstack-claim0
+status: {}

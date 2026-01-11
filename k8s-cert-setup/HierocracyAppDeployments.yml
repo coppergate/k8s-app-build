@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hierocracy-internal-app
+  namespace: test-tls-deploy
+  labels:
+    app: hierocracy-internal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hierocracy-internal
+  template:
+    metadata:
+      labels:
+        app: hierocracy-internal
+    spec:
+      containers:
+        - name: app
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8443
+              name: https
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/ssl/certs
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: hierocracy-internal-tls
+        - name: nginx-config
+          configMap:
+            name: nginx-ssl-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hierocracy-external-app
+  namespace: test-tls-deploy
+  labels:
+    app: hierocracy-external
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hierocracy-external
+  template:
+    metadata:
+      labels:
+        app: hierocracy-external
+    spec:
+      containers:
+        - name: app
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8443
+              name: https
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/ssl/certs
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: hierocracy-external-tls
+        - name: nginx-config
+          configMap:
+            name: nginx-ssl-config

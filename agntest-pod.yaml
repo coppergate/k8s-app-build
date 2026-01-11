@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-agnhost
+  namespace: test-deploys
+spec:
+  volumes:
+  - name: arch-apm-crt
+    secret:
+      secretName: elasticsearch-es-http-certs-internal
+  - name: certs
+    secret:
+      secretName: elasticsearch-es-http-certs-internal    
+  containers:
+  - name: agnhost
+    image: registry.k8s.io/e2e-test-images/agnhost:2.40
+    volumeMounts:
+    - name: arch-apm-crt
+      mountPath: /etc/apm-otel/crt
+      readOnly: true
+    - name: certs
+      mountPath: /mnt/certs
+      readOnly: true
+  

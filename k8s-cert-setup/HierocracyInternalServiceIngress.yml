@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hierocracy-internal-service
+  namespace: test-tls-deploy
+  labels:
+    app: hierocracy-internal
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 8443
+      protocol: TCP
+      name: https
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: hierocracy-internal
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hierocracy-internal-ingress
+  namespace: test-tls-deploy
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+        - internal.hierocracy.home
+        - api.internal.hierocracy.home
+        - admin.internal.hierocracy.home
+      secretName: hierocracy-internal-tls
+  rules:
+    - host: internal.hierocracy.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hierocracy-internal-service
+                port:
+                  number: 443
+    - host: api.internal.hierocracy.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hierocracy-internal-service
+                port:
+                  number: 443

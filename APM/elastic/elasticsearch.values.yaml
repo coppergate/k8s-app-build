@@ -1,0 +1,71 @@
+# kubectl create -f https://download.elastic.co/downloads/eck/3.0.0/crds.yaml
+# kubectl apply -f https://download.elastic.co/downloads/eck/3.0.0/operator.yaml
+# 
+
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elastic-system
+  labels:
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+  namespace: elastic-system
+spec:
+  version: 8.17.4
+  nodeSets:
+    - name: master-nodes
+      count: 3
+      podTemplate:
+        spec:
+          nodeSelector:
+            elastic-node: data
+          initContainers:
+            - name: sysctl
+              securityContext:
+                privileged: true
+                runAsUser: 0
+              command: [ "sh", "-c", "sysctl -w vm.max_map_count=262144" ]
+      config:
+        node.roles: [ "master", "data" ]
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Gi
+            storageClassName: rook-ceph-fs-sc
+    - name: data-nodes
+      count: 3
+      podTemplate:
+        spec:
+          nodeSelector:
+            elastic-node: data
+          initContainers:
+            - name: sysctl
+              securityContext:
+                privileged: true
+                runAsUser: 0
+              command: [ "sh", "-c", "sysctl -w vm.max_map_count=262144" ]
+      config:
+        node.roles: [ "data", "ingest" ]
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 30Gi
+            storageClassName: rook-ceph-fs-sc
+---

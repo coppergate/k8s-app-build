@@ -1,0 +1,58 @@
+
+ kubectl port-forward --namespace observability services/otlp-test-service 8088:8080
+ kubectl port-forward --namespace observability services/jaegertracing-poc-query 8089:16686 > stdout.jaeger.out &
+ kubectl port-forward --namespace observability services/prometheus-otlp-grafana 8090:80 & > stdout.prometheus.out
+ 
+ kubectl logs --namespace observability services/otel-poc-collector -f
+ 
+ 
+ curl http://localhost:8088/weatherforecast
+ 
+ 
+ cert-manager.
+ kubectl get pods --namespace operators | grep cert-manager
+
+ create test cert
+ wait for 30s and display test-cert
+ 
+ install elastic-operator-0
+	'kubectl get pods --namespace elastic-system | grep elastic-operator
+
+wait for 
+	elasticsearch-es-data-nodes
+		'kubectl get pods --namespace elastic-system | grep elasticsearch-es-	
+		STATUS 'Running'
+
+ wait for 
+	jaeger-operator
+		'kubectl get pods --namespace observability | grep jaeger-operator	
+ 
+ wait for 
+	jaegar components
+		'kubectl get pods --namespace observability | grep -e jaeger-collector -e jaeger-query
+	
+ wait for 
+	kube-prometheus	
+		'kubectl get pods --namespace observability | grep -e otlp- -e alertmanager- -e prometheus-
+		
+ wait for 
+	opentelemetry operator
+		'kubectl get pods --namespace observability | grep opentelemetry-
+
+ wait for 
+	otel components	
+		'kubectl get pods --namespace observability | grep -e otel-poc-collector -e otel-test-app -e prometheus-
+
+
+kubectl get pods --namespace observability | grep -e otel-poc-collector -e otel-test-app -e prometheus-
+
+check_result=($(kubectl get pods --namespace observability | grep -e otel-poc-collector -e otel-test-app -e prometheus- | sed -e "s/ \+  /\t/g" | cut --fields=1,3))
+for key in "${!check_result[@]}"; do
+    echo "${array[$key]}"
+done
+
+
+
+https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.71.2/bundle.yaml
+
+https://www.mytechramblings.com/posts/getting-started-with-opentelemetry-and-dotnet-core/

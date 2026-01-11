@@ -1,0 +1,118 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apm-server-config
+  namespace: { { .Values.apmserver.releaseNamespace } }
+  labels:
+    k8s-app: apm-server
+  annotations:
+    meta.helm.sh/release-name: { { .Values.apmserver.releaseName } }
+    meta.helm.sh/release-namespace: { { .Values.apmserver.releaseNamespace } }
+data:
+  apm-server.yml: |-
+    apm-server:
+      host: "0.0.0.0:8200"
+      frontend:
+        enabled: true
+    setup.template.settings:
+      index:
+        number_of_shards: 1
+        codec: best_compression
+    setup.dashboards.enabled: true
+    setup.kibana:
+      host: "{{ .Values.apmserver.kibanaHost }}" # "https://kibana-elasticsearch-kb-http.elastic-system:5601"
+    output.elasticsearch:
+      hosts: [ "{{ .Values.apmserver.elasticHost }}" ] # ["https://elasticsearch-es-internal-http.elastic-system:9200"]
+      indices:
+        - index: "apm-%{[beat.version]}-sourcemap"
+          when.contains:
+            processor.event: "sourcemap"
+        - index: "apm-%{[beat.version]}-error-%{+yyyy.MM.dd}"
+          when.contains:
+            processor.event: "error"
+        - index: "apm-%{[beat.version]}-transaction-%{+yyyy.MM.dd}"
+          when.contains:
+            processor.event: "transaction"
+        - index: "apm-%{[beat.version]}-span-%{+yyyy.MM.dd}"
+          when.contains:
+            processor.event: "span"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apm-server
+  namespace: { { .Values.apmserver.releaseNamespace } }
+  annotations:
+    meta.helm.sh/release-name: { { .Values.apmserver.releaseName } }
+    meta.helm.sh/release-namespace: { { .Values.apmserver.namspace } }
+  labels:
+    app: apm-server
+spec:
+  ports:
+    - port: 8200
+      targetPort: 8200
+      name: http
+      nodePort: 31000
+  selector:
+    app: apm-server
+  type: NodePort
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: apm-server
+  namespace: { { .Values.apmserver.releaseNamespace } }
+  annotations:
+    meta.helm.sh/release-name: { { .Values.apmserver.releaseName } }
+    meta.helm.sh/release-namespace: { { .Values.apmserver.namspace } }
+spec:
+  # this replicas value is default
+  # modify it according to your case
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: apm-server
+    spec:
+      containers:
+        - name: apm-server
+          image: docker.elastic.co/apm/apm-server:6.3.1
+          ports:
+            - containerPort: 8200
+              name: apm-port
+          volumeMounts:
+            - name: apm-server-config
+              mountPath: /usr/share/apm-server/apm-server.yml
+              readOnly: true
+              subPath: apm-server.yml
+      volumes:
+        - name: apm-server-config
+          configMap:
+            name: apm-server-config
+      resources:
+        limits:
+          cpu: { { .Values.resources.limits.cpu } }
+          memory: { { .Values.resources.limits.memory } }
+        requests:
+          cpu: { { .Values.resources.requests.cpu } }
+          memory: { { .Values.resources.requests.memory } }
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: apm-server-scaler
+  namespace: { { .Values.apmserver.releaseNamespace } }
+  annotations:
+    meta.helm.sh/release-name: { { .Values.apmserver.releaseName } }
+    meta.helm.sh/release-namespace: { { .Values.apmserver.namspace } }
+  labels:
+    qsr-internal-purpose: "apm-poc-test"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: apm-server
+  minReplicas: { { .Values.scaling.minReplicas } }
+  maxReplicas: { { .Values.scaling.maxReplicas } }
+  targetCPUUtilizationPercentage: { { .Values.scaling.cpuTarget } }

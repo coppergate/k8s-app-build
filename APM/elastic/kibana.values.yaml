@@ -1,0 +1,78 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana
+  namespace: elastic-system
+spec:
+  version: 8.17.4
+  count: 1
+  elasticsearchRef:
+    name: elasticsearch
+  config:
+    logging:
+      root:
+        level: info
+    xpack.fleet.agents.elasticsearch.hosts: [ "https://elasticsearch-es-internal-http.elastic-system:9200" ]
+    xpack.fleet.agents.fleet_server.hosts: [ "https://fleet-server.elastic-system:4432" ]
+    xpack.fleet.packages:
+      - name: elastic_agent
+        version: latest
+      - name: fleet_server
+        version: latest
+      - name: apm
+        version: latest
+      - name: kubernetes
+        version: latest
+    xpack.fleet.agentPolicies:
+      - name: Fleet Server on ECK policy
+        id: fleet-server-policy
+        namespace: default
+        monitoring_enabled:
+          - logs
+          - metrics
+        unenroll_timeout: 900
+        package_policies:
+          - name: eck-fleet-server-1
+            id: eck-fleet-server-1
+            package:
+              name: fleet_server
+      - name: Elastic Agent policy
+        id: elastic-agent-policy
+        namespace: default
+        monitoring_enabled:
+          - logs
+          - metrics
+        unenroll_timeout: 900
+        is_default: true
+        package_policies:
+          - name: elastic-agent-1
+            id: elastic-agent-1
+            package:
+              name: elastic_agent
+      - name: Elastic APM policy
+        id: apm-elastic-policy
+        namespace: default
+        monitoring_enabled:
+          - logs
+          - metrics
+        unenroll_timeout: 900
+        is_default: true
+        package_policies:
+          - name: elastic-apm-1
+            id: elastic-apm-1
+            package:
+              name: apm
+      - name: Elastic Kubernetes policy
+        id: kubernetes-agent-policy
+        namespace: default
+        monitoring_enabled:
+          - logs
+          - metrics
+        unenroll_timeout: 900
+        is_default: true
+        package_policies:
+          - name: elastic-kubernetes-1
+            id: elastic-kubernetes-1
+            package:
+              name: kubernetes
+###########################################

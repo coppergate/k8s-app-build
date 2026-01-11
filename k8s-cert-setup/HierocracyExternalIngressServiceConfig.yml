@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hierocracy-external-service
+  namespace: test-tls-deploy
+  labels:
+    app: hierocracy-external
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 443
+      targetPort: 8443
+      protocol: TCP
+      name: https
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: hierocracy-external
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hierocracy-external-ingress
+  namespace: test-tls-deploy
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+        - hierocracy.home
+        - www.hierocracy.home
+        - api.hierocracy.home
+        - admin.hierocracy.home
+        - app.hierocracy.home
+      secretName: hierocracy-external-tls
+  rules:
+    - host: hierocracy.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hierocracy-external-service
+                port:
+                  number: 443
+    - host: www.hierocracy.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hierocracy-external-service
+                port:
+                  number: 443
+    - host: api.hierocracy.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hierocracy-external-service
+                port:
+                  number: 443

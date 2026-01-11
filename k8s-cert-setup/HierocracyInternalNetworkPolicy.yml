@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hierocracy-internal-network-policy
+  namespace: test-tls-deploy
+spec:
+  podSelector:
+    matchLabels:
+      app: hierocracy-internal
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: { }
+        - namespaceSelector:
+            matchLabels:
+              name: cert-manager
+        - namespaceSelector:
+            matchLabels:
+              name: test-tls-deploy
+        - ipBlock:
+            cidr: 10.2.1.0/24
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+  egress:
+    - to:
+        - podSelector: { }
+        - namespaceSelector:
+            matchLabels:
+              name: cert-manager
+        - namespaceSelector:
+            matchLabels:
+              name: test-tls-deploy
+        - ipBlock:
+            cidr: 10.2.1.0/24
+        - ipBlock:
+            cidr: 192.16.192.0/24
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+        - protocol: UDP
+          port: 53

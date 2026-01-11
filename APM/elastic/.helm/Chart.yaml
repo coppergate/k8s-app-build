@@ -1,0 +1,7 @@
+{
+  "apiVersion": "v1",
+  "description": "Chart for ElasticSearch APM structure" ,
+  "name": "elastic-apm-service",
+  "version": "0.0.0",
+  "icon": "https://api.adorable.io/avatars/285/placeholder@qsrautomations.com.png"
+}
