@@ -1,0 +1,425 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rag-web-ui
+  namespace: rag-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rag-web-ui-job-manager
+  namespace: rag-system
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "create", "delete", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rag-web-ui-job-manager-binding
+  namespace: rag-system
+subjects:
+- kind: ServiceAccount
+  name: rag-web-ui
+  namespace: rag-system
+roleRef:
+  kind: Role
+  name: rag-web-ui-job-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-web-ui
+  namespace: rag-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-web-ui
+  template:
+    metadata:
+      labels:
+        app: rag-web-ui
+    spec:
+      serviceAccountName: rag-web-ui
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: role
+                operator: In
+                values:
+                - storage-node
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: web-ui
+        image: python:3.9-slim
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            export PATH=$PATH:/tmp/.local/bin
+            export PYTHONUSERBASE=/tmp/.local
+            mkdir -p /tmp/.local
+            pip install --user flask boto3 kubernetes
+            python /app/app.py
+        ports:
+        - containerPort: 5000
+        env:
+        - name: HOME
+          value: /tmp
+        - name: S3_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: rag-codebase-bucket
+              key: BUCKET_HOST
+        - name: BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: rag-codebase-bucket
+              key: BUCKET_NAME
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rag-codebase-bucket
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rag-codebase-bucket
+              key: AWS_SECRET_ACCESS_KEY
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+      volumes:
+      - name: app-code
+        configMap:
+          name: rag-web-ui-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag-web-ui
+  namespace: rag-system
+  annotations:
+    purelb.io/service-group: default
+spec:
+  selector:
+    app: rag-web-ui
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-web-ui-code
+  namespace: rag-system
+data:
+  app.py: |
+    import os
+    import boto3
+    from flask import Flask, request, redirect, url_for, flash, render_template_string
+    from botocore.client import Config
+    from kubernetes import client, config
+    from kubernetes.client.rest import ApiException
+    
+    app = Flask(__name__)
+    app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
+    
+    # S3 Configuration
+    S3_ENDPOINT = os.getenv("S3_ENDPOINT")
+    if S3_ENDPOINT and not S3_ENDPOINT.startswith(('http://', 'https://')):
+        S3_ENDPOINT = f"http://{S3_ENDPOINT}"
+    
+    S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
+    S3_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+    BUCKET_NAME = os.getenv("BUCKET_NAME")
+    NAMESPACE = "rag-system"
+    JOB_NAME = "ingest-codebase-s3"
+    
+    def get_s3_client():
+        return boto3.client(
+            's3',
+            endpoint_url=S3_ENDPOINT,
+            aws_access_key_id=S3_ACCESS_KEY,
+            aws_secret_access_key=S3_SECRET_KEY,
+            config=Config(signature_version='s3v4'),
+            region_name='us-east-1'
+        )
+
+    def get_k8s_batch_client():
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            config.load_kube_config()
+        return client.BatchV1Api()
+
+    @app.route('/')
+    def index():
+        s3 = get_s3_client()
+        files = []
+        try:
+            response = s3.list_objects_v2(Bucket=BUCKET_NAME)
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    files.append(obj['Key'])
+        except Exception as e:
+            flash(f"S3 Error: {str(e)}")
+
+        VERSION = "v1.0.1"
+        BUILD_DATE = "2026-01-12"
+
+        html = """
+        <html>
+            <head>
+                <title>RAG Object Store UI</title>
+                <style>
+                    body { font-family: sans-serif; margin: 40px; }
+                    .container { max-width: 800px; margin: auto; }
+                    .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; color: white; }
+                    .btn-upload { background-color: #2196F3; }
+                    .btn-ingest { background-color: #4CAF50; margin-top: 20px; font-size: 1.1em; }
+                    .btn-ingest:hover { background-color: #45a049; }
+                    .flash { padding: 10px; background-color: #f44336; color: white; margin-bottom: 20px; }
+                    .success { background-color: #4CAF50; }
+                    footer { margin-top: 50px; font-size: 0.8em; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>RAG Object Store - File Management</h1>
+                    
+                    {% with messages = get_flashed_messages() %}
+                      {% if messages %}
+                        {% for message in messages %}
+                          <div class="flash">{{ message }}</div>
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+
+                    <h3>1. Upload Directory</h3>
+                    <form action="/upload" method="post" enctype="multipart/form-data">
+                        <div style="margin-bottom: 10px;">
+                            <input type="file" name="file" id="directoryInput" multiple webkitdirectory directory mozdirectory>
+                        </div>
+                        <div id="fileStatus" style="margin-bottom: 10px; color: #666; font-style: italic;">No directory selected</div>
+                        <input type="submit" value="Upload Directory" id="uploadBtn" class="btn btn-upload" disabled>
+                    </form>
+
+                    <script>
+                    document.getElementById('directoryInput').addEventListener('change', function(e) {
+                        const files = e.target.files;
+                        const status = document.getElementById('fileStatus');
+                        const btn = document.getElementById('uploadBtn');
+                        
+                        console.log("File input changed. Number of files:", files.length);
+                        
+                        if (files.length > 0) {
+                            const firstPath = files[0].webkitRelativePath;
+                            console.log("First file path:", firstPath);
+                            const folderName = firstPath ? firstPath.split('/')[0] : "Selected Files";
+                            status.innerText = "Selected: " + folderName + " (" + files.length + " files ready to upload)";
+                            status.style.color = "#4CAF50";
+                            status.style.fontWeight = "bold";
+                            btn.disabled = false;
+                        } else {
+                            status.innerText = "No directory selected";
+                            status.style.color = "#666";
+                            status.style.fontWeight = "normal";
+                            btn.disabled = true;
+                        }
+                    });
+                    </script>
+
+                    <hr>
+
+                    <h3>2. Trigger Vector Ingestion</h3>
+                    <p>Click the button below to start the ingestion job. This will process the files currently in S3 and load them into Qdrant.</p>
+                    <form action="/trigger-ingest" method="post">
+                        <input type="submit" value="🚀 Start Ingestion Job" class="btn btn-ingest">
+                    </form>
+
+                    <hr>
+
+                    <h2>Current Files in S3</h2>
+                    <ul>
+                        {% for file in files %}
+                            <li>{{ file }}</li>
+                        {% else %}
+                            <li>No files found.</li>
+                        {% endfor %}
+                    </ul>
+                    <footer>
+                        Version: {{ version }} | Build Date: {{ build_date }}
+                    </footer>
+                </div>
+            </body>
+        </html>
+        """
+        return render_template_string(html, files=files, version=VERSION, build_date=BUILD_DATE)
+    
+    @app.route('/upload', methods=['POST'])
+    def upload():
+        if 'file' not in request.files:
+            return redirect(url_for('index'))
+        
+        files = request.files.getlist('file')
+        s3 = get_s3_client()
+        
+        uploaded_count = 0
+        for file in files:
+            if file.filename == '':
+                continue
+            
+            try:
+                s3_key = file.filename
+                s3.upload_fileobj(file, BUCKET_NAME, s3_key)
+                uploaded_count += 1
+            except Exception as e:
+                flash(f"Failed to upload {file.filename}: {e}")
+    
+        flash(f"Successfully uploaded {uploaded_count} files to S3.", "success")
+        return redirect(url_for('index'))
+
+    @app.route('/trigger-ingest', methods=['POST'])
+    def trigger_ingest():
+        batch_v1 = get_k8s_batch_client()
+        
+        # 1. Delete existing job if it exists
+        try:
+            batch_v1.delete_namespaced_job(
+                name=JOB_NAME,
+                namespace=NAMESPACE,
+                propagation_policy='Background'
+            )
+            print(f"Deleted existing job {JOB_NAME}")
+        except ApiException as e:
+            if e.status != 404:
+                flash(f"Error deleting old job: {e}")
+                return redirect(url_for('index'))
+
+        # 2. Re-create the job
+        # We'll pull the job template from the existing job if possible, 
+        # but since we just deleted it, we should define it here or use a template.
+        # For simplicity, we'll define the job spec here matching ingest-job-s3.yaml
+        
+        job_manifest = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {"name": JOB_NAME, "namespace": NAMESPACE},
+            "spec": {
+                "template": {
+                    "spec": {
+                        "affinity": {
+                            "nodeAffinity": {
+                                "requiredDuringSchedulingIgnoredDuringExecution": {
+                                    "nodeSelectorTerms": [
+                                        {
+                                            "matchExpressions": [
+                                                {"key": "role", "operator": "In", "values": ["storage-node"]}
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            "podAntiAffinity": {
+                                "preferredDuringSchedulingIgnoredDuringExecution": [
+                                    {
+                                        "weight": 100,
+                                        "podAffinityTerm": {
+                                            "labelSelector": {
+                                                "matchExpressions": [
+                                                    {"key": "app", "operator": "In", "values": ["qdrant"]}
+                                                ]
+                                            },
+                                            "topologyKey": "kubernetes.io/hostname"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "securityContext": {
+                            "runAsNonRoot": True,
+                            "runAsUser": 1000,
+                            "seccompProfile": {"type": "RuntimeDefault"}
+                        },
+                        "containers": [
+                            {
+                                "name": "ingestor",
+                                "image": "python:3.9-slim",
+                                "securityContext": {
+                                    "allowPrivilegeEscalation": False,
+                                    "capabilities": {"drop": ["ALL"]},
+                                    "runAsNonRoot": True,
+                                    "runAsUser": 1000,
+                                    "seccompProfile": {"type": "RuntimeDefault"}
+                                },
+                                "command": ["/bin/sh", "-c"],
+                                "args": [
+                                    "pip install qdrant-client sentence-transformers boto3\npython /scripts/ingest.py\n"
+                                ],
+                                "env": [
+                                    {"name": "QDRANT_HOST", "value": "qdrant"},
+                                    {
+                                        "name": "S3_ENDPOINT",
+                                        "valueFrom": {"configMapKeyRef": {"name": "rag-codebase-bucket", "key": "BUCKET_HOST"}}
+                                    },
+                                    {
+                                        "name": "BUCKET_NAME",
+                                        "valueFrom": {"configMapKeyRef": {"name": "rag-codebase-bucket", "key": "BUCKET_NAME"}}
+                                    },
+                                    {
+                                        "name": "AWS_ACCESS_KEY_ID",
+                                        "valueFrom": {"secretKeyRef": {"name": "rag-codebase-bucket", "key": "AWS_ACCESS_KEY_ID"}}
+                                    },
+                                    {
+                                        "name": "AWS_SECRET_ACCESS_KEY",
+                                        "valueFrom": {"secretKeyRef": {"name": "rag-codebase-bucket", "key": "AWS_SECRET_ACCESS_KEY"}}
+                                    },
+                                    {"name": "ALLOWED_EXTENSIONS", "value": ".md,.sh,.yaml,.yml,.py,.txt,.c,.h,.cpp,.hpp,.cs,.json"}
+                                ],
+                                "volumeMounts": [{"name": "script", "mountPath": "/scripts"}]
+                            }
+                        ],
+                        "volumes": [
+                            {"name": "script", "configMap": {"name": "ingest-s3-script"}}
+                        ],
+                        "restartPolicy": "OnFailure"
+                    }
+                },
+                "backoffLimit": 4
+            }
+        }
+
+        try:
+            batch_v1.create_namespaced_job(namespace=NAMESPACE, body=job_manifest)
+            flash("Ingestion job triggered successfully!", "success")
+        except ApiException as e:
+            flash(f"Error triggering job: {e}")
+
+        return redirect(url_for('index'))
+    
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=5000)
+
