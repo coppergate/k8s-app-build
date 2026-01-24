@@ -10,7 +10,12 @@
 - **Paths**: Absolute paths (e.g., `/mnt/hegemon-share/share/code/kubernetes-app-setup` or
   `/var/lib/libvirt/images/...`) are relative to the file system of **hierophant**.
 - **SSH**: SSH commands are intended to be executed from **hierophant** to other machines in the cluster. a user 'junie'
-  has been added to 'hierophant' for this access
+  has been added to 'hierophant' for this access.
+  - When accessing **hierophant** from this environment, ALWAYS use the private key `~/.ssh/id_hierophant_access` and the user `junie`.
+- **Kubernetes (kubectl)**: When running `kubectl` commands on **hierophant**, you MUST use the following paths:
+  - **Executable**: `/home/k8s/kube/kubectl`
+  - **Kubeconfig**: `/home/k8s/kube/config/kubeconfig`
+  - Example: `ssh -i ~/.ssh/id_hierophant_access junie@hierophant "export KUBECONFIG=/home/k8s/kube/config/kubeconfig && /home/k8s/kube/kubectl get pods"`
 - **CONTEXT**: This document outlines the guidelines for executing scripts and accessing resources within the project
   environment. This will ensure consistency and security by defining the roles and responsibilities of different
   components.

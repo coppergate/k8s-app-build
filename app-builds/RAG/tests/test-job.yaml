@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rag-integration-test
+  namespace: rag-system
+spec:
+  template:
+    spec:
+      enableServiceLinks: false
+      containers:
+      - name: tester
+        image: python:3.9-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            pip install boto3 requests qdrant-client
+            echo "--- Running Integration Tests ---"
+            python /tests/integration_test.py
+            echo "--- Running Context Verification (Setup) ---"
+            python /tests/context_verification.py
+            # Here we should ideally wait for ingestion.
+            # For this POC, we'll assume the user or a separate process triggers it.
+            # In a real CI, we'd trigger the ingest job via k8s API and wait.
+        env:
+        - name: S3_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: rag-codebase-bucket
+              key: BUCKET_HOST
+        - name: BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: rag-codebase-bucket
+              key: BUCKET_NAME
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rag-codebase-bucket
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rag-codebase-bucket
+              key: AWS_SECRET_ACCESS_KEY
+        - name: QDRANT_HOST
+          value: "qdrant"
+        - name: GATEWAY_URL
+          value: "http://llm-gateway.rag-system.svc.cluster.local/v1/chat/completions"
+        volumeMounts:
+        - name: tests
+          mountPath: /tests
+      volumes:
+      - name: tests
+        configMap:
+          name: rag-integration-tests
+      restartPolicy: Never
+  backoffLimit: 0

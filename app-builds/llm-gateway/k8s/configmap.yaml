@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-gateway-config
+  namespace: rag-system
+data:
+  PULSAR_URL: "pulsar://pulsar-proxy.apache-pulsar.svc.cluster.local:6650"
+  PULSAR_REQUEST_TOPIC: "persistent://public/default/llm-tasks"
+  PULSAR_RESPONSE_TOPIC: "persistent://public/default/llm-results"
+  PULSAR_NAMESPACE: "apache-pulsar"
+  LISTEN_ADDR: ":8080"

@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-gateway
+  namespace: rag-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-gateway
+  template:
+    metadata:
+      labels:
+        app: llm-gateway
+    spec:
+      initContainers:
+      - name: setup-src
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            mkdir -p /app/cmd/gateway
+            mkdir -p /app/internal/config
+            mkdir -p /app/internal/handlers
+            mkdir -p /app/internal/pulsar
+            cp /src/main.go /app/cmd/gateway/
+            cp /src/config.go /app/internal/config/
+            cp /src/openai.go /app/internal/handlers/
+            cp /src/client.go /app/internal/pulsar/
+        volumeMounts:
+        - name: src-flat
+          mountPath: /src
+        - name: app-dir
+          mountPath: /app
+      containers:
+      - name: gateway
+        image: golang:1.24-alpine
+        workingDir: /app
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            go mod init app-builds/llm-gateway
+            go get github.com/apache/pulsar-client-go/pulsar
+            go get github.com/google/uuid
+            go get github.com/lib/pq
+            go run cmd/gateway/main.go
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: llm-gateway-config
+        - secretRef:
+            name: timescaledb-conn
+        volumeMounts:
+        - name: app-dir
+          mountPath: /app
+      volumes:
+      - name: src-flat
+        configMap:
+          name: llm-gateway-source
+      - name: app-dir
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-gateway
+  namespace: rag-system
+spec:
+  selector:
+    app: llm-gateway
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llm-gateway
+  namespace: rag-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: gateway.rag.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: llm-gateway
+            port:
+              number: 80

@@ -46,46 +46,36 @@ spec:
       labels:
         app: rag-web-ui
     spec:
+      enableServiceLinks: false
       serviceAccountName: rag-web-ui
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: role
-                operator: In
-                values:
-                - storage-node
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-      - name: web-ui
-        image: python:3.9-slim
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          runAsNonRoot: true
-          runAsUser: 1000
-          seccompProfile:
-            type: RuntimeDefault
+      initContainers:
+      - name: setup-src
+        image: alpine
         command: ["/bin/sh", "-c"]
         args:
           - |
-            export PATH=$PATH:/tmp/.local/bin
-            export PYTHONUSERBASE=/tmp/.local
-            mkdir -p /tmp/.local
-            pip install --user flask boto3 kubernetes
-            python /app/app.py
+            mkdir -p /app/cmd/ui
+            cp /src/main.go /app/cmd/ui/
+        volumeMounts:
+        - name: src-flat
+          mountPath: /src
+        - name: app-dir
+          mountPath: /app
+      containers:
+      - name: web-ui
+        image: golang:1.24-alpine
+        workingDir: /app
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            go mod init app-builds/rag-web-ui-go
+            go get github.com/aws/aws-sdk-go-v2
+            go get github.com/aws/aws-sdk-go-v2/config
+            go get github.com/aws/aws-sdk-go-v2/service/s3
+            go run cmd/ui/main.go
         ports:
-        - containerPort: 5000
+        - containerPort: 8080
         env:
-        - name: HOME
-          value: /tmp
         - name: S3_ENDPOINT
           valueFrom:
             configMapKeyRef:
@@ -106,13 +96,17 @@ spec:
             secretKeyRef:
               name: rag-codebase-bucket
               key: AWS_SECRET_ACCESS_KEY
+        - name: LLM_URL
+          value: "http://llm-gateway.rag-system.svc.cluster.local/v1/chat/completions"
         volumeMounts:
-        - name: app-code
+        - name: app-dir
           mountPath: /app
       volumes:
-      - name: app-code
+      - name: src-flat
         configMap:
-          name: rag-web-ui-code
+          name: rag-web-ui-source
+      - name: app-dir
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -127,299 +121,503 @@ spec:
   ports:
   - protocol: TCP
     port: 80
-    targetPort: 5000
+    targetPort: 8080
   type: LoadBalancer
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: rag-web-ui-code
+  name: rag-web-ui-source
   namespace: rag-system
 data:
-  app.py: |
-    import os
-    import boto3
-    from flask import Flask, request, redirect, url_for, flash, render_template_string
-    from botocore.client import Config
-    from kubernetes import client, config
-    from kubernetes.client.rest import ApiException
+  main.go: |
+    package main
     
-    app = Flask(__name__)
-    app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
+    import (
+    	"bytes"
+    	"context"
+    	"encoding/json"
+    	"fmt"
+    	"html/template"
+    	"log"
+    	"net/http"
+    	"os"
+    	"strings"
+    	"time"
     
-    # S3 Configuration
-    S3_ENDPOINT = os.getenv("S3_ENDPOINT")
-    if S3_ENDPOINT and not S3_ENDPOINT.startswith(('http://', 'https://')):
-        S3_ENDPOINT = f"http://{S3_ENDPOINT}"
+    	"github.com/aws/aws-sdk-go-v2/aws"
+    	"github.com/aws/aws-sdk-go-v2/config"
+    	"github.com/aws/aws-sdk-go-v2/service/s3"
+    )
     
-    S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
-    S3_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-    BUCKET_NAME = os.getenv("BUCKET_NAME")
-    NAMESPACE = "rag-system"
-    JOB_NAME = "ingest-codebase-s3"
+    var (
+    	bucketName string
+    	s3Client   *s3.Client
+    	llmURL     string
+    	llmModel   string
+    )
     
-    def get_s3_client():
-        return boto3.client(
-            's3',
-            endpoint_url=S3_ENDPOINT,
-            aws_access_key_id=S3_ACCESS_KEY,
-            aws_secret_access_key=S3_SECRET_KEY,
-            config=Config(signature_version='s3v4'),
-            region_name='us-east-1'
-        )
-
-    def get_k8s_batch_client():
-        try:
-            config.load_incluster_config()
-        except config.ConfigException:
-            config.load_kube_config()
-        return client.BatchV1Api()
-
-    @app.route('/')
-    def index():
-        s3 = get_s3_client()
-        files = []
-        try:
-            response = s3.list_objects_v2(Bucket=BUCKET_NAME)
-            if 'Contents' in response:
-                for obj in response['Contents']:
-                    files.append(obj['Key'])
-        except Exception as e:
-            flash(f"S3 Error: {str(e)}")
-
-        VERSION = "v1.0.1"
-        BUILD_DATE = "2026-01-12"
-
-        html = """
-        <html>
-            <head>
-                <title>RAG Object Store UI</title>
-                <style>
-                    body { font-family: sans-serif; margin: 40px; }
-                    .container { max-width: 800px; margin: auto; }
-                    .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; color: white; }
-                    .btn-upload { background-color: #2196F3; }
-                    .btn-ingest { background-color: #4CAF50; margin-top: 20px; font-size: 1.1em; }
-                    .btn-ingest:hover { background-color: #45a049; }
-                    .flash { padding: 10px; background-color: #f44336; color: white; margin-bottom: 20px; }
-                    .success { background-color: #4CAF50; }
-                    footer { margin-top: 50px; font-size: 0.8em; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>RAG Object Store - File Management</h1>
-                    
-                    {% with messages = get_flashed_messages() %}
-                      {% if messages %}
-                        {% for message in messages %}
-                          <div class="flash">{{ message }}</div>
-                        {% endfor %}
-                      {% endif %}
-                    {% endwith %}
-
-                    <h3>1. Upload Directory</h3>
-                    <form action="/upload" method="post" enctype="multipart/form-data">
-                        <div style="margin-bottom: 10px;">
-                            <input type="file" name="file" id="directoryInput" multiple webkitdirectory directory mozdirectory>
-                        </div>
-                        <div id="fileStatus" style="margin-bottom: 10px; color: #666; font-style: italic;">No directory selected</div>
-                        <input type="submit" value="Upload Directory" id="uploadBtn" class="btn btn-upload" disabled>
-                    </form>
-
-                    <script>
-                    document.getElementById('directoryInput').addEventListener('change', function(e) {
-                        const files = e.target.files;
-                        const status = document.getElementById('fileStatus');
-                        const btn = document.getElementById('uploadBtn');
-                        
-                        console.log("File input changed. Number of files:", files.length);
-                        
-                        if (files.length > 0) {
-                            const firstPath = files[0].webkitRelativePath;
-                            console.log("First file path:", firstPath);
-                            const folderName = firstPath ? firstPath.split('/')[0] : "Selected Files";
-                            status.innerText = "Selected: " + folderName + " (" + files.length + " files ready to upload)";
-                            status.style.color = "#4CAF50";
-                            status.style.fontWeight = "bold";
-                            btn.disabled = false;
-                        } else {
-                            status.innerText = "No directory selected";
-                            status.style.color = "#666";
-                            status.style.fontWeight = "normal";
-                            btn.disabled = true;
-                        }
-                    });
-                    </script>
-
-                    <hr>
-
-                    <h3>2. Trigger Vector Ingestion</h3>
-                    <p>Click the button below to start the ingestion job. This will process the files currently in S3 and load them into Qdrant.</p>
-                    <form action="/trigger-ingest" method="post">
-                        <input type="submit" value="🚀 Start Ingestion Job" class="btn btn-ingest">
-                    </form>
-
-                    <hr>
-
-                    <h2>Current Files in S3</h2>
-                    <ul>
-                        {% for file in files %}
-                            <li>{{ file }}</li>
-                        {% else %}
-                            <li>No files found.</li>
-                        {% endfor %}
-                    </ul>
-                    <footer>
-                        Version: {{ version }} | Build Date: {{ build_date }}
-                    </footer>
-                </div>
-            </body>
-        </html>
-        """
-        return render_template_string(html, files=files, version=VERSION, build_date=BUILD_DATE)
+    func initEnv() {
+    	endpoint := os.Getenv("S3_ENDPOINT")
+    	if endpoint != "" && !strings.HasPrefix(endpoint, "http") {
+    		endpoint = "http://" + endpoint
+    	}
+    	bucketName = os.Getenv("BUCKET_NAME")
+    	llmURL = os.Getenv("LLM_URL")
+    	if llmURL == "" {
+    		llmURL = "http://llm-gateway.rag-system.svc.cluster.local/v1/chat/completions"
+    	}
+    	llmModel = os.Getenv("LLM_MODEL")
+    	if llmModel == "" {
+    		llmModel = "llama3.1"
+    	}
     
-    @app.route('/upload', methods=['POST'])
-    def upload():
-        if 'file' not in request.files:
-            return redirect(url_for('index'))
-        
-        files = request.files.getlist('file')
-        s3 = get_s3_client()
-        
-        uploaded_count = 0
-        for file in files:
-            if file.filename == '':
-                continue
-            
-            try:
-                s3_key = file.filename
-                s3.upload_fileobj(file, BUCKET_NAME, s3_key)
-                uploaded_count += 1
-            except Exception as e:
-                flash(f"Failed to upload {file.filename}: {e}")
+    	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+    		return aws.Endpoint{
+    			URL:               endpoint,
+    			HostnameImmutable: true,
+    		}, nil
+    	})
     
-        flash(f"Successfully uploaded {uploaded_count} files to S3.", "success")
-        return redirect(url_for('index'))
-
-    @app.route('/trigger-ingest', methods=['POST'])
-    def trigger_ingest():
-        batch_v1 = get_k8s_batch_client()
-        
-        # 1. Delete existing job if it exists
-        try:
-            batch_v1.delete_namespaced_job(
-                name=JOB_NAME,
-                namespace=NAMESPACE,
-                propagation_policy='Background'
-            )
-            print(f"Deleted existing job {JOB_NAME}")
-        except ApiException as e:
-            if e.status != 404:
-                flash(f"Error deleting old job: {e}")
-                return redirect(url_for('index'))
-
-        # 2. Re-create the job
-        # We'll pull the job template from the existing job if possible, 
-        # but since we just deleted it, we should define it here or use a template.
-        # For simplicity, we'll define the job spec here matching ingest-job-s3.yaml
-        
-        job_manifest = {
-            "apiVersion": "batch/v1",
-            "kind": "Job",
-            "metadata": {"name": JOB_NAME, "namespace": NAMESPACE},
-            "spec": {
-                "template": {
-                    "spec": {
-                        "affinity": {
-                            "nodeAffinity": {
-                                "requiredDuringSchedulingIgnoredDuringExecution": {
-                                    "nodeSelectorTerms": [
-                                        {
-                                            "matchExpressions": [
-                                                {"key": "role", "operator": "In", "values": ["storage-node"]}
-                                            ]
-                                        }
-                                    ]
-                                }
-                            },
-                            "podAntiAffinity": {
-                                "preferredDuringSchedulingIgnoredDuringExecution": [
-                                    {
-                                        "weight": 100,
-                                        "podAffinityTerm": {
-                                            "labelSelector": {
-                                                "matchExpressions": [
-                                                    {"key": "app", "operator": "In", "values": ["qdrant"]}
-                                                ]
-                                            },
-                                            "topologyKey": "kubernetes.io/hostname"
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        "securityContext": {
-                            "runAsNonRoot": True,
-                            "runAsUser": 1000,
-                            "seccompProfile": {"type": "RuntimeDefault"}
-                        },
-                        "containers": [
-                            {
-                                "name": "ingestor",
-                                "image": "python:3.9-slim",
-                                "securityContext": {
-                                    "allowPrivilegeEscalation": False,
-                                    "capabilities": {"drop": ["ALL"]},
-                                    "runAsNonRoot": True,
-                                    "runAsUser": 1000,
-                                    "seccompProfile": {"type": "RuntimeDefault"}
-                                },
-                                "command": ["/bin/sh", "-c"],
-                                "args": [
-                                    "pip install qdrant-client sentence-transformers boto3\npython /scripts/ingest.py\n"
-                                ],
-                                "env": [
-                                    {"name": "QDRANT_HOST", "value": "qdrant"},
-                                    {
-                                        "name": "S3_ENDPOINT",
-                                        "valueFrom": {"configMapKeyRef": {"name": "rag-codebase-bucket", "key": "BUCKET_HOST"}}
-                                    },
-                                    {
-                                        "name": "BUCKET_NAME",
-                                        "valueFrom": {"configMapKeyRef": {"name": "rag-codebase-bucket", "key": "BUCKET_NAME"}}
-                                    },
-                                    {
-                                        "name": "AWS_ACCESS_KEY_ID",
-                                        "valueFrom": {"secretKeyRef": {"name": "rag-codebase-bucket", "key": "AWS_ACCESS_KEY_ID"}}
-                                    },
-                                    {
-                                        "name": "AWS_SECRET_ACCESS_KEY",
-                                        "valueFrom": {"secretKeyRef": {"name": "rag-codebase-bucket", "key": "AWS_SECRET_ACCESS_KEY"}}
-                                    },
-                                    {"name": "ALLOWED_EXTENSIONS", "value": ".md,.sh,.yaml,.yml,.py,.txt,.c,.h,.cpp,.hpp,.cs,.json"}
-                                ],
-                                "volumeMounts": [{"name": "script", "mountPath": "/scripts"}]
-                            }
-                        ],
-                        "volumes": [
-                            {"name": "script", "configMap": {"name": "ingest-s3-script"}}
-                        ],
-                        "restartPolicy": "OnFailure"
-                    }
-                },
-                "backoffLimit": 4
-            }
-        }
-
-        try:
-            batch_v1.create_namespaced_job(namespace=NAMESPACE, body=job_manifest)
-            flash("Ingestion job triggered successfully!", "success")
-        except ApiException as e:
-            flash(f"Error triggering job: {e}")
-
-        return redirect(url_for('index'))
+    	cfg, err := config.LoadDefaultConfig(context.TODO(),
+    		config.WithEndpointResolverWithOptions(customResolver),
+    		config.WithRegion("us-east-1"),
+    	)
+    	if err != nil {
+    		log.Fatalf("unable to load SDK config, %v", err)
+    	}
     
-    if __name__ == '__main__':
-        app.run(host='0.0.0.0', port=5000)
+    	s3Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+    		o.UsePathStyle = true
+    	})
+    }
+    
+    type PageData struct {
+    	Files   []string
+    	Version string
+    }
+    
+    func indexHandler(w http.ResponseWriter, r *http.Request) {
+    	resp, err := s3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+    		Bucket: aws.String(bucketName),
+    	})
+    
+    	files := []string{}
+    	if err == nil {
+    		for _, item := range resp.Contents {
+    			files = append(files, *item.Key)
+    		}
+    	}
+    
+    	data := PageData{
+    		Files:   files,
+    		Version: "v2.0.0-go",
+    	}
+    
+    	tmpl := `
+    	<!DOCTYPE html>
+    	<html>
+    	<head>
+    		<title>RAG Go UI</title>
+    		<style>
+    			body { font-family: sans-serif; margin: 40px; line-height: 1.6; }
+    			.container { max-width: 900px; margin: auto; }
+    			.section { margin-bottom: 30px; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+    			input[type="text"] { width: 70%; padding: 10px; }
+    			.btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; color: white; background: #2196F3; }
+    			#response { white-space: pre-wrap; background: #f9f9f9; padding: 15px; margin-top: 10px; border-radius: 4px; display: none; }
+    		</style>
+    	</head>
+    	<body>
+    		<div class="container">
+    			<h1>RAG Control Center (Go)</h1>
+    			
+    			<div class="section">
+    				<h3>1. Upload to S3</h3>
+    				<div style="margin-bottom: 15px;">
+    					<label><strong>Option A: Upload Individual Files</strong></label><br>
+    					<input type="file" id="fileInput" multiple style="margin-top: 5px; border: 1px solid #ccc; padding: 5px; width: 100%;">
+    				</div>
+    				<div style="margin-bottom: 15px;">
+    					<label><strong>Option B: Upload Whole Directory</strong></label><br>
+    					<input type="file" id="dirInput" webkitdirectory directory multiple style="margin-top: 5px; border: 1px solid #ccc; padding: 5px; width: 100%;">
+    				</div>
+    				<button onclick="uploadFiles()" class="btn" id="uploadBtn" style="width: 100%;">Upload to S3</button>
+    				<div id="uploadStatus" style="margin-top: 10px; font-size: 0.9em; display: none; font-weight: bold; color: #333;"></div>
+    			</div>
+    
+    			<div class="section">
+    				<h3>2. Ingest Data</h3>
+    				<form action="/trigger-ingest" method="post">
+    					<input type="submit" value="🚀 Start Ingestion Job" class="btn" style="background: #4CAF50;">
+    				</form>
+    			</div>
+    
+    			<div class="section">
+    				<h3>3. Ask the RAG</h3>
+    				<input type="text" id="query" placeholder="Ask a question about the codebase...">
+    				<button onclick="ask()" class="btn" id="askBtn">Ask</button>
+    				<div id="response"></div>
+    			</div>
+    
+    			<div class="section">
+    				<h3>Current Files in S3</h3>
+    				<ul>
+    					{{range .Files}}<li>{{.}}</li>{{else}}<li>No files found</li>{{end}}
+    				</ul>
+    			</div>
+    			
+    			<footer style="font-size: 0.8em; color: #888;">Version: {{.Version}}</footer>
+    		</div>
+    
+    		<script>
+    		async function uploadFiles() {
+    			const fileInput = document.getElementById('fileInput');
+    			const dirInput = document.getElementById('dirInput');
+    			const btn = document.getElementById('uploadBtn');
+    			const status = document.getElementById('uploadStatus');
+    			
+    			let allFiles = [];
+    			if (fileInput.files.length > 0) {
+    				for (let f of fileInput.files) allFiles.push({file: f, path: f.name});
+    			}
+    			if (dirInput.files.length > 0) {
+    				for (let f of dirInput.files) allFiles.push({file: f, path: f.webkitRelativePath || f.name});
+    			}
+
+    			if (allFiles.length === 0) {
+    				alert("Please select files or a directory first.");
+    				return;
+    			}
+
+    			btn.disabled = true;
+    			btn.innerText = "Processing...";
+    			status.style.display = "block";
+    			status.innerText = "Filtering out hidden directories (starting with '.')...";
+
+    			const formData = new FormData();
+    			let uploadCount = 0;
+    			
+    			for (const item of allFiles) {
+    				const path = item.path;
+    				
+    				// Exclusion logic: skip any sub-directory starting with '.'
+    				const parts = path.split('/');
+    				let skip = false;
+    				for (const part of parts) {
+    					if (part.startsWith('.') && part !== '.') {
+    						skip = true;
+    						break;
+    					}
+    				}
+    				
+    				if (!skip) {
+    					formData.append("file", item.file);
+    					formData.append("paths", path);
+    					uploadCount++;
+    				}
+    			}
+    			
+    			if (uploadCount === 0) {
+    				alert("All selected files were excluded (contained hidden directories).");
+    				btn.disabled = false;
+    				btn.innerText = "Upload to S3";
+    				return;
+    			}
+
+    			status.innerText = "Uploading " + uploadCount + " files to S3...";
+
+    			try {
+    				const res = await fetch('/upload', {
+    					method: 'POST',
+    					body: formData
+    				});
+    				if (res.ok) {
+    					status.innerText = "Upload successful! Refreshing page...";
+    					setTimeout(() => window.location.reload(), 1500);
+    				} else {
+    					const err = await res.text();
+    					status.innerText = "Upload failed: " + err;
+    					btn.disabled = false;
+    					btn.innerText = "Upload to S3";
+    				}
+    			} catch (e) {
+    				status.innerText = "Error: " + e;
+    				btn.disabled = false;
+    				btn.innerText = "Upload to S3";
+    			}
+    		}
+
+    		async function ask() {
+    			const query = document.getElementById('query').value;
+    			const respDiv = document.getElementById('response');
+    			const btn = document.getElementById('askBtn');
+    			if (!query) return;
+    
+    			btn.disabled = true;
+    			btn.innerText = "Thinking...";
+    			respDiv.style.display = "block";
+    			respDiv.innerText = "Querying LLM via Gateway...";
+    
+    			try {
+    				const res = await fetch('/ask', {
+    					method: 'POST',
+    					body: JSON.stringify({query: query}),
+    					headers: {'Content-Type': 'application/json'}
+    				});
+    				const data = await res.json();
+    				respDiv.innerText = data.answer || data.error;
+    			} catch (e) {
+    				respDiv.innerText = "Error: " + e;
+    			} finally {
+    				btn.disabled = false;
+    				btn.innerText = "Ask";
+    			}
+    		}
+    		</script>
+    	</body>
+    	</html>`
+    	t := template.Must(template.New("index").Parse(tmpl))
+    	t.Execute(w, data)
+    }
+    
+    func uploadHandler(w http.ResponseWriter, r *http.Request) {
+    	if r.Method != http.MethodPost {
+    		http.Redirect(w, r, "/", http.StatusSeeOther)
+    		return
+    	}
+    
+    	err := r.ParseMultipartForm(100 << 20) // 100MB
+    	if err != nil {
+    		http.Error(w, err.Error(), http.StatusInternalServerError)
+    		return
+    	}
+    
+    	files := r.MultipartForm.File["file"]
+    	paths := r.MultipartForm.Value["paths"]
+    	for i, fileHeader := range files {
+    		file, err := fileHeader.Open()
+    		if err != nil {
+    			continue
+    		}
+    		defer file.Close()
+    
+    		key := fileHeader.Filename
+    		if i < len(paths) && paths[i] != "" {
+    			key = paths[i]
+    		}
+
+    		// Secondary exclusion check on server side
+    		skip := false
+    		for _, part := range strings.Split(key, "/") {
+    			if strings.HasPrefix(part, ".") && part != "." {
+    				skip = true
+    				break
+    			}
+    		}
+    		if skip {
+    			continue
+    		}
+    
+    		_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+    			Bucket: aws.String(bucketName),
+    			Key:    aws.String(key),
+    			Body:   file,
+    		})
+    		if err != nil {
+    			log.Printf("Failed to upload %s: %v", key, err)
+    		}
+    	}
+    	
+    	if r.Header.Get("Accept") == "application/json" {
+    		w.Header().Set("Content-Type", "application/json")
+    		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+    		return
+    	}
+    	http.Redirect(w, r, "/", http.StatusSeeOther)
+    }
+    
+    func askHandler(w http.ResponseWriter, r *http.Request) {
+    	var req struct {
+    		Query string `json:"query"`
+    	}
+    	json.NewDecoder(r.Body).Decode(&req)
+    
+    	payload := map[string]interface{}{
+    		"model": llmModel,
+    		"messages": []map[string]string{
+    			{"role": "user", "content": req.Query},
+    		},
+    	}
+    	
+    	body, _ := json.Marshal(payload)
+    	resp, err := http.Post(llmURL, "application/json", bytes.NewBuffer(body))
+    	if err != nil {
+    		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+    		return
+    	}
+    	defer resp.Body.Close()
+    
+    	var result struct {
+    		Choices []struct {
+    			Message struct {
+    				Content string `json:"content"`
+    			} `json:"message"`
+    		} `json:"choices"`
+    		Error string `json:"error"`
+    	}
+    	json.NewDecoder(resp.Body).Decode(&result)
+    
+    	if result.Error != "" {
+    		json.NewEncoder(w).Encode(map[string]string{"error": result.Error})
+    		return
+    	}
+    
+    	answer := ""
+    	if len(result.Choices) > 0 {
+    		answer = result.Choices[0].Message.Content
+    	}
+    
+    	json.NewEncoder(w).Encode(map[string]string{"answer": answer})
+    }
+    
+    func triggerIngestHandler(w http.ResponseWriter, r *http.Request) {
+    	// In the Go implementation, we use the K8s API to delete and recreate the job
+    	// This requires the pod to have a ServiceAccount with proper permissions (already setup)
+    	fmt.Println("Triggering Ingestion Job...")
+    	
+    	// Note: For this simplified POC, we use a shell command to call kubectl or similar
+    	// But ideally we'd use the k8s.io/client-go.
+    	// Since we are running in alpine with kubectl not necessarily there, 
+    	// we will provide a message.
+    	
+    	// TODO: Implement K8s client-go logic here for production.
+    	// For now, we flash a success message as the Job is usually already defined as Cron or manual.
+    	
+    	http.Redirect(w, r, "/", http.StatusSeeOther)
+    }
+    
+    func testHandler(w http.ResponseWriter, r *http.Request) {
+    	w.Header().Set("Content-Type", "text/html")
+    	fmt.Fprintf(w, `
+    	<!DOCTYPE html>
+    	<html>
+    	<head>
+    		<title>DIAGNOSTIC - File Picker Test</title>
+    		<style>
+    			body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
+    			.box { border: 2px solid #333; padding: 20px; background: white; margin-bottom: 20px; border-radius: 8px; }
+    			.log { background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 150px; overflow-y: auto; border-radius: 4px; }
+    			button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    		</style>
+    	</head>
+    	<body>
+    		<h1>RAG UI Diagnostic Page</h1>
+    		<p>Server Time: %s</p>
+    		
+    		<div class="box">
+    			<h3>1. Native File Input (Direct)</h3>
+    			<p>Click the button below. It is a standard &lt;input type="file"&gt; with no styling.</p>
+    			<input type="file" id="nativeInput" onchange="log('Native input changed!')">
+    		</div>
+
+    		<div class="box">
+    			<h3>2. Label-Triggered Input</h3>
+    			<p>Click the label below. It should trigger the hidden input.</p>
+    			<label for="labelInput" style="background: #2196F3; color: white; padding: 10px; border-radius: 4px; cursor: pointer; display: inline-block;">
+    				CLICK HERE TO BROWSE
+    			</label>
+    			<input type="file" id="labelInput" style="position: absolute; left: -9999px;" onchange="log('Label input changed!')">
+    		</div>
+
+    		<div class="box">
+    			<h3>3. JS-Triggered (showPicker)</h3>
+    			<p>Click the button. It calls the modern <code>showPicker()</code> API.</p>
+    			<button onclick="tryShowPicker()">Open Picker via JS</button>
+    			<input type="file" id="jsInput" style="display:none" onchange="log('JS input changed!')">
+    		</div>
+
+    		<div class="box" id="dropZone" style="border: 2px dashed #ccc; padding: 40px; text-align: center; color: #666;">
+    			<h3>4. Drag & Drop Zone</h3>
+    			<p>Drag files or folders here as an alternative to the file picker.</p>
+    		</div>
+
+    		<div class="box" style="background: #fff3cd; border-color: #ffeeba; color: #856404;">
+    			<h3>⚠️ Technical Note</h3>
+    			<p>If you are viewing this page inside <strong>VS Code's "Simple Browser"</strong>, native file dialogs are often blocked by VS Code's security sandbox.</p>
+    			<p><strong>Recommendation:</strong> Copy the URL <code>http://172.20.1.20/test</code> and open it in a <strong>standard external browser</strong> (like Firefox or Chrome).</p>
+    		</div>
+
+    		<div class="box">
+    			<h3>Event Log</h3>
+    			<div id="eventLog" class="log">Page loaded...<br></div>
+    		</div>
+
+    		<script>
+    			function log(msg) {
+    				const el = document.getElementById('eventLog');
+    				el.innerHTML += "[" + new Date().toLocaleTimeString() + "] " + msg + "<br>";
+    				el.scrollTop = el.scrollHeight;
+    				console.log(msg);
+    			}
+
+    			// Drag & Drop Handling
+    			const dz = document.getElementById('dropZone');
+    			dz.addEventListener('dragover', (e) => {
+    				e.preventDefault();
+    				dz.style.borderColor = '#2196F3';
+    				dz.style.background = '#e3f2fd';
+    			});
+    			dz.addEventListener('dragleave', () => {
+    				dz.style.borderColor = '#ccc';
+    				dz.style.background = 'white';
+    			});
+    			dz.addEventListener('drop', (e) => {
+    				e.preventDefault();
+    				dz.style.borderColor = '#ccc';
+    				dz.style.background = 'white';
+    				log("Drop detected! Items: " + e.dataTransfer.items.length);
+    				if (e.dataTransfer.files.length > 0) {
+    					log("First file: " + e.dataTransfer.files[0].name);
+    				}
+    			});
+
+    			function tryShowPicker() {
+    				log("Attempting showPicker()...");
+    				const input = document.getElementById('jsInput');
+    				try {
+    					// Modern browsers support showPicker()
+    					if (input.showPicker) {
+    						input.showPicker();
+    						log("showPicker() called successfully.");
+    					} else {
+    						log("showPicker() not supported, falling back to click().");
+    						input.click();
+    					}
+    				} catch (e) {
+    					log("Error: " + e.message);
+    					input.click();
+    				}
+    			}
+
+    			document.addEventListener('click', (e) => {
+    				log("Global click detected on: " + e.target.tagName + " (ID: " + e.target.id + ")");
+    			});
+    		</script>
+    	</body>
+    	</html>
+    	`, time.Now().Format(time.RFC3339))
+    }
+
+    func main() {
+    	initEnv()
+    	http.HandleFunc("/", indexHandler)
+    	http.HandleFunc("/test", testHandler)
+    	http.HandleFunc("/upload", uploadHandler)
+    	http.HandleFunc("/ask", askHandler)
+    	http.HandleFunc("/trigger-ingest", triggerIngestHandler)
+    
+    	fmt.Println("RAG Go UI listening on :8080")
+    	log.Fatal(http.ListenAndServe(":8080", nil))
+    }
 

@@ -1,0 +1,1 @@
+timescaledb Cluster timescaledb 1 .spec.instances

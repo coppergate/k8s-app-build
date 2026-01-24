@@ -1,7 +1,6 @@
 helm repo add otwld https://helm.otwld.com/
 helm repo update
 
-
 kubectl create namespace llms-ollama
 
 kubectl label --overwrite namespace llms-ollama \

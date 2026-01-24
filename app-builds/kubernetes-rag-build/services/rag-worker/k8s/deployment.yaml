@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-worker
+  namespace: rag-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-worker
+  template:
+    metadata:
+      labels:
+        app: rag-worker
+    spec:
+      enableServiceLinks: false
+      initContainers:
+      - name: setup-src
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            mkdir -p /app/cmd/worker
+            mkdir -p /app/internal/config
+            mkdir -p /app/internal/ollama
+            mkdir -p /app/internal/qdrant
+            cp /src/main.go /app/cmd/worker/
+            cp /src/config.go /app/internal/config/
+            cp /src/ollama_client.go /app/internal/ollama/client.go
+            cp /src/qdrant_client.go /app/internal/qdrant/client.go
+        volumeMounts:
+        - name: src-flat
+          mountPath: /src
+        - name: app-dir
+          mountPath: /app
+      containers:
+      - name: worker
+        image: golang:1.24-alpine
+        workingDir: /app
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            go mod init app-builds/rag-worker
+            go get github.com/apache/pulsar-client-go/pulsar
+            go run cmd/worker/main.go
+        env:
+        - name: PULSAR_URL
+          value: "pulsar://pulsar-proxy.apache-pulsar.svc.cluster.local:6650"
+        - name: QDRANT_HOST
+          value: "qdrant"
+        - name: OLLAMA_URL
+          value: "http://ollama.llms-ollama.svc.cluster.local:11434"
+        volumeMounts:
+        - name: app-dir
+          mountPath: /app
+      volumes:
+      - name: src-flat
+        configMap:
+          name: rag-worker-source
+      - name: app-dir
+        emptyDir: {}

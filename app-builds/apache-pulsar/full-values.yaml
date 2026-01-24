@@ -355,8 +355,8 @@ zookeeper:
     follower: 2888
     leaderElection: 3888
     # admin: 9990
-    # nodeSelector:
-    # cloud.google.com/gke-nodepool: default-pool
+    nodeSelector:
+      role: pulsar-worker
   probe:
     liveness:
       enabled: true
@@ -608,8 +608,8 @@ bookkeeper:
     http: 8000
     bookie: 3181
     statestore: 4181
-    # nodeSelector:
-    # cloud.google.com/gke-nodepool: default-pool
+    nodeSelector:
+      role: pulsar-worker
   probe:
     liveness:
       enabled: true
@@ -887,12 +887,9 @@ pulsar_metadata:
   #      cpu: 1
 
   ## optional you can specify tolerations and nodeSelectors for all init jobs (pulsar-init & bookkeeper-init)
+  nodeSelector:
+    role: pulsar-worker
   # tolerations: []
-  #   - key: "someKey"
-  #     operator: "Equal"
-  #     value: "someValue"
-  #     effect: "NoSchedule"
-  # nodeSelector: {}
   #   cloud.google.com/gke-nodepool: default-pool
 
   ## optional, you can provide your own zookeeper metadata store for other components
@@ -935,8 +932,8 @@ broker:
     https: 8443
     pulsar: 6650
     pulsarssl: 6651
-    # nodeSelector:
-    # cloud.google.com/gke-nodepool: default-pool
+    nodeSelector:
+      role: pulsar-worker
   probe:
     liveness:
       enabled: true
@@ -1177,8 +1174,8 @@ proxy:
     #   regex: cluster
   # True includes annotation for statefulset that contains hash of corresponding configmap, which will cause pods to restart on configmap change
   restartPodsOnConfigMapChange: false
-    # nodeSelector:
-  # cloud.google.com/gke-nodepool: default-pool
+  nodeSelector:
+    role: pulsar-worker
   probe:
     liveness:
       enabled: true

@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rag-web-ui
+  namespace: rag-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rag-web-ui-job-manager
+  namespace: rag-system
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "create", "delete", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rag-web-ui-job-manager-binding
+  namespace: rag-system
+subjects:
+- kind: ServiceAccount
+  name: rag-web-ui
+  namespace: rag-system
+roleRef:
+  kind: Role
+  name: rag-web-ui-job-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-web-ui
+  namespace: rag-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-web-ui
+  template:
+    metadata:
+      labels:
+        app: rag-web-ui
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: rag-web-ui
+      initContainers:
+      - name: setup-src
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            mkdir -p /app/cmd/ui
+            cp /src/main.go /app/cmd/ui/
+        volumeMounts:
+        - name: src-flat
+          mountPath: /src
+        - name: app-dir
+          mountPath: /app
+      containers:
+      - name: web-ui
+        image: golang:1.24-alpine
+        workingDir: /app
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            go mod init app-builds/rag-web-ui-go
+            go get github.com/aws/aws-sdk-go-v2
+            go get github.com/aws/aws-sdk-go-v2/config
+            go get github.com/aws/aws-sdk-go-v2/service/s3
+            go run cmd/ui/main.go
+        ports:
+        - containerPort: 8080
+        env:
+        - name: S3_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: rag-codebase-bucket
+              key: BUCKET_HOST
+        - name: BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: rag-codebase-bucket
+              key: BUCKET_NAME
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rag-codebase-bucket
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rag-codebase-bucket
+              key: AWS_SECRET_ACCESS_KEY
+        - name: LLM_URL
+          value: "http://llm-gateway.rag-system.svc.cluster.local/v1/chat/completions"
+        volumeMounts:
+        - name: app-dir
+          mountPath: /app
+      volumes:
+      - name: src-flat
+        configMap:
+          name: rag-web-ui-source
+      - name: app-dir
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag-web-ui
+  namespace: rag-system
+  annotations:
+    purelb.io/service-group: default
+spec:
+  selector:
+    app: rag-web-ui
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-web-ui-source
+  namespace: rag-system
+data:
+  main.go: "" # Replaced by setup script from local file
+

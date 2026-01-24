@@ -1,0 +1,749 @@
+app-builds/rook:
+ceph-block.yaml    install-values.yaml  README.md             values.yaml
+cluster.yaml       nppBackup            README.md.orig        values.yaml.orig
+common.yaml        object-store.yaml    rook                  zap-disks.sh
+crds.yaml          object.yaml          rook-manage-svc.yaml
+csi-operator.yaml  operator.yaml        storageclass.yaml
+filesystem.yaml    pool.yaml            toolbox.yaml
+app-builds/rook/nppBackup:
+ceph-block.yaml.2025-12-17_123151.bak  object-store.yaml.2025-12-17_121421.bak
+cluster.yaml.2025-12-17_121151.bak     object-store.yaml.2025-12-17_121438.bak
+cluster.yaml.2025-12-17_130052.bak
+app-builds/rook/rook:
+ADOPTERS.md         deploy         INSTALL.md              README.md
+build               design         LICENSE                 ROADMAP.md
+cmd                 Documentation  Makefile                SECURITY.md
+CODE_OF_CONDUCT.md  go.mod         mkdocs.yml              tests
+CODE-OWNERS         go.sum         OWNERS.md
+CONTRIBUTING.md     GOVERNANCE.md  PendingReleaseNotes.md
+DCO                 images         pkg
+app-builds/rook/rook/build:
+codegen  common.sh  crds  makelib  rbac  release  reset  sed-in-place
+app-builds/rook/rook/build/codegen:
+boilerplate.go.txt  codegen.sh  header.txt
+app-builds/rook/rook/build/crds:
+build-crds.sh  crd-docs-config.json  generate-crd-docs.sh
+app-builds/rook/rook/build/makelib:
+common.mk  golang.mk  helm.mk
+app-builds/rook/rook/build/rbac:
+common.yaml.header  gen-psp.sh        keep-rbac-yaml.sh
+gen-common.sh       get-helm-rbac.sh  nfs-rbac.yaml.header
+gen-nfs-rbac.sh     keep-added.sh     psp.yaml.header
+app-builds/rook/rook/build/release:
+latest_release_branch.sh  README.md              set-release-ver.sh
+Makefile                  requirements_docs.txt
+app-builds/rook/rook/cmd:
+rook
+app-builds/rook/rook/cmd/rook:
+ceph  discover.go  main.go  rook  secret.go  userfacing  util  version
+app-builds/rook/rook/cmd/rook/ceph:
+ceph.go  cleanup.go  config.go  mgr.go  operator.go  osd.go  osd_test.go
+app-builds/rook/rook/cmd/rook/rook:
+rook.go
+app-builds/rook/rook/cmd/rook/userfacing:
+multus  userfacing.go
+app-builds/rook/rook/cmd/rook/userfacing/multus:
+multus.go  validation
+app-builds/rook/rook/cmd/rook/userfacing/multus/validation:
+config.go  validation.go
+app-builds/rook/rook/cmd/rook/util:
+cmdreporter.go  doc.go
+app-builds/rook/rook/cmd/rook/version:
+version.go
+app-builds/rook/rook/deploy:
+charts  examples  olm
+app-builds/rook/rook/deploy/charts:
+library  rook-ceph  rook-ceph-cluster
+app-builds/rook/rook/deploy/charts/library:
+Chart.yaml  templates
+app-builds/rook/rook/deploy/charts/library/templates:
+_cluster-clusterrolebinding.tpl  _cluster-serviceaccount.tpl
+_cluster-monitoring.tpl          _imagepullsecret.tpl
+_cluster-psp.tpl                 _recommended-labels.tpl
+_cluster-rolebinding.tpl         _suffix-cluster-namespace.tpl
+_cluster-role.tpl
+app-builds/rook/rook/deploy/charts/rook-ceph:
+charts  Chart.yaml  README.md  templates  values.yaml
+app-builds/rook/rook/deploy/charts/rook-ceph/charts:
+library
+app-builds/rook/rook/deploy/charts/rook-ceph/templates:
+aggregate-roles.yaml     deployment.yaml   role.yaml
+cluster-rbac.yaml        NOTES.txt         securityContextConstraints.yaml
+clusterrolebinding.yaml  psp.yaml          serviceaccount.yaml
+clusterrole.yaml         resources.yaml    servicemonitor.yaml
+configmap.yaml           rolebinding.yaml
+app-builds/rook/rook/deploy/charts/rook-ceph-cluster:
+charts      prometheus  templates             values.yaml
+Chart.yaml  README.md   values-external.yaml
+app-builds/rook/rook/deploy/charts/rook-ceph-cluster/charts:
+library
+app-builds/rook/rook/deploy/charts/rook-ceph-cluster/prometheus:
+externalrules.yaml  localrules.yaml
+app-builds/rook/rook/deploy/charts/rook-ceph-cluster/templates:
+cephblockpool.yaml              _helpers.tpl
+cephcluster.yaml                httproute.yaml
+cephecblockpool.yaml            ingress.yaml
+cephfilesystem.yaml             NOTES.txt
+cephobjectstore-httproute.yaml  prometheusrules.yaml
+cephobjectstore-ingress.yaml    rbac.yaml
+cephobjectstore.yaml            securityContextConstraints.yaml
+configmap.yaml                  volumesnapshotclass.yaml
+deployment.yaml
+app-builds/rook/rook/deploy/examples:
+bucket-notification-endpoint.yaml
+bucket-notification.yaml
+bucket-topic.yaml
+ceph-client.yaml
+cluster-external-management.yaml
+cluster-external.yaml
+cluster-multus-test.yaml
+cluster-on-local-pvc.yaml
+cluster-on-pvc-minikube.yaml
+cluster-on-pvc.yaml
+cluster-stretched-aws.yaml
+cluster-stretched.yaml
+cluster-test.yaml
+cluster.yaml
+common-external.yaml
+common-second-cluster.yaml
+common.yaml
+cosi
+crds.yaml
+create-external-cluster-resources.py
+create-external-cluster-resources-tests.py
+csi
+csi-ceph-conf-override.yaml
+csi-operator.yaml
+dashboard-external-https.yaml
+dashboard-external-http.yaml
+dashboard-ingress-https.yaml
+dashboard-loadbalancer.yaml
+direct-mount.yaml
+external
+filesystem-ec.yaml
+filesystem-mirror.yaml
+filesystem-test.yaml
+filesystem.yaml
+headless-mon-service.yaml
+images.txt
+import-external-cluster.sh
+kustomization.yaml
+monitoring
+multus-validation-test-openshift.yaml
+mysql.yaml
+nfs-load-balancer.yaml
+nfs-test.yaml
+nfs.yaml
+object-a.yaml
+object-bucket-claim-a.yaml
+object-bucket-claim-delete.yaml
+object-bucket-claim-notification.yaml
+object-bucket-claim-retain.yaml
+object-b.yaml
+object-ec.yaml
+object-external.yaml
+object-multi-instance-test.yaml
+object-multisite-pull-realm-test.yaml
+object-multisite-pull-realm.yaml
+object-multisite-test.yaml
+object-multisite.yaml
+object-openshift.yaml
+object-separate-pools-test.yaml
+object-shared-pools-test.yaml
+object-shared-pools.yaml
+object-test.yaml
+object-user.yaml
+object.yaml
+operator-openshift.yaml
+operator.yaml
+osd-env-override.yaml
+osd-purge.yaml
+pool-builtin-mgr.yaml
+pool-ec.yaml
+pool-mirrored.yaml
+pool-test.yaml
+pool.yaml
+psp.yaml
+radosnamespace-mirrored.yaml
+radosnamespace.yaml
+rbdmirror.yaml
+README.md
+rgw-external.yaml
+sqlitevfs-client.yaml
+storageclass-bucket-a.yaml
+storageclass-bucket-delete.yaml
+storageclass-bucket-retain.yaml
+subvolumegroup.yaml
+toolbox-job.yaml
+toolbox-operator-image.yaml
+toolbox.yaml
+two-object-one-zone-test.yaml
+volume-replication-class.yaml
+volume-replication.yaml
+wordpress.yaml
+app-builds/rook/rook/deploy/examples/cosi:
+bucketaccessclass.yaml  bucketclaim.yaml  cephcosidriver.yaml
+bucketaccess.yaml       bucketclass.yaml
+app-builds/rook/rook/deploy/examples/csi:
+cephfs  nfs  rbd
+app-builds/rook/rook/deploy/examples/csi/cephfs:
+groupsnapshotclass.yaml  pod.yaml          snapshotclass.yaml
+groupsnapshot.yaml       pvc-clone.yaml    snapshot.yaml
+kube-registry.yaml       pvc-restore.yaml  storageclass-ec.yaml
+pod-ephemeral.yaml       pvc.yaml          storageclass.yaml
+app-builds/rook/rook/deploy/examples/csi/nfs:
+pod.yaml        pvc-restore.yaml  rbac.yaml           snapshot.yaml
+pvc-clone.yaml  pvc.yaml          snapshotclass.yaml  storageclass.yaml
+app-builds/rook/rook/deploy/examples/csi/rbd:
+pod-ephemeral.yaml  pvc.yaml            snapshot.yaml
+pod.yaml            raw-block-pod.yaml  storageclass-ec.yaml
+pvc-clone.yaml      raw-block-pvc.yaml  storageclass-test.yaml
+pvc-restore.yaml    snapshotclass.yaml  storageclass.yaml
+app-builds/rook/rook/deploy/examples/external:
+cluster-external.yaml                       dashboard-external-http.yaml
+common-external.yaml                        import-external-cluster.sh
+create-external-cluster-resources.py        object-bucket-claim-delete.yaml
+create-external-cluster-resources-tests.py  object-external.yaml
+dashboard-external-https.yaml               storageclass-bucket-delete.yaml
+app-builds/rook/rook/deploy/examples/monitoring:
+csi-metrics-service-monitor.yaml  keda-rgw.yaml            rbac.yaml
+exporter-service-monitor.yaml     localrules.yaml          service-monitor.yaml
+externalrules.yaml                prometheus-service.yaml
+grafana                           prometheus.yaml
+app-builds/rook/rook/deploy/examples/monitoring/grafana:
+'Ceph Cluster Dashboard.json'     'Ceph Pools Dashboard.json'
+'Ceph OSD Single Dashboard.json'   README.md
+app-builds/rook/rook/deploy/olm:
+assemble
+app-builds/rook/rook/deploy/olm/assemble:
+objectbucket.io_objectbucketclaims.yaml  objectbucket.io_objectbuckets.yaml
+app-builds/rook/rook/design:
+ceph  ceph-csi-operator.md  common  design_template.md  README.md
+app-builds/rook/rook/design/ceph:
+ac_design.png                         dynamic-provision-filesystem.md
+ac_dev_design.png                     external-management.md
+admission-controller.md               filesystem.md
+ceph-cluster-cleanup.md               interacting-with-rook-resources.md
+ceph-config-updates.md                key-encryption-key-rotation.md
+ceph-config-via-cluster-crd.md        multi-cluster-service.md
+ceph-csi-driver.md                    multus-network.md
+ceph-exporter.md                      node-loss-rbd-cephfs.md
+ceph-external-cluster.md              object
+ceph-managed-disruptionbudgets.md     osd-migration.md
+ceph-mon-pv.md                        resource-constraints.md
+ceph-nfs-ganesha.md                   resource-dependencies.md
+ceph-openshift-fencing-mitigation.md  resource-dependencies.png
+ceph-stretch-cluster.md               rook-ceph-status-conditions.md
+ceph-telemetry.md                     security-model.md
+ceph-volume-provisioning.md           storage-class-device-set.md
+cluster-update.md                     stretchcluster.png
+data-model.md                         update-osds-in-parallel.md
+decouple-ceph-version.md              upgrade.md
+dedicated-osd-pod.md
+app-builds/rook/rook/design/ceph/object:
+bucketpolicy.md                  realm.md
+ceph-bucket-notification-crd.md  store.md
+ceph-cosi-driver.md              swift-and-keystone-integration.md
+ceph-multisite-overview.md       zone-group.md
+ceph-sse-s3.md                   zone.md
+app-builds/rook/rook/design/common:
+multi-net-multus.md  multiple-storage-types-support.md  object-bucket.md
+app-builds/rook/rook/Documentation:
+Contributing                Helm-Charts            stylesheets
+CRDs                        media                  Troubleshooting
+gen-crd-api-reference-docs  README.md              Upgrade
+Getting-Started             Storage-Configuration
+app-builds/rook/rook/Documentation/Contributing:
+ci-configuration.md         development-flow.md  rook-test-framework.md
+development-environment.md  documentation.md
+app-builds/rook/rook/Documentation/CRDs:
+Block-Storage       ceph-nfs-crd.md  Object-Storage     specification.md
+ceph-client-crd.md  Cluster          Shared-Filesystem
+app-builds/rook/rook/Documentation/CRDs/Block-Storage:
+ceph-block-pool-crd.md                  ceph-rbd-mirror-crd.md
+ceph-block-pool-rados-namespace-crd.md
+app-builds/rook/rook/Documentation/CRDs/Cluster:
+ceph-cluster-crd.md  host-cluster.md       pvc-cluster.md
+external-cluster     network-providers.md  stretch-cluster.md
+app-builds/rook/rook/Documentation/CRDs/Cluster/external-cluster:
+advance-external.md  external-cluster.md  topology-for-external-mode.md
+consumer-import.md   provider-export.md   upgrade-external.md
+app-builds/rook/rook/Documentation/CRDs/Object-Storage:
+ceph-object-realm-crd.md       ceph-object-zone-crd.md
+ceph-object-store-crd.md       ceph-object-zonegroup-crd.md
+ceph-object-store-user-crd.md
+app-builds/rook/rook/Documentation/CRDs/Shared-Filesystem:
+ceph-filesystem-crd.md  ceph-fs-mirror-crd.md  ceph-fs-subvolumegroup-crd.md
+app-builds/rook/rook/Documentation/gen-crd-api-reference-docs:
+template
+app-builds/rook/rook/Documentation/gen-crd-api-reference-docs/template:
+members.tpl  pkg.tpl  placeholder.go  type.tpl
+app-builds/rook/rook/Documentation/Getting-Started:
+ceph-openshift.md          glossary.md    release-cycle.md
+ceph-storage               intro.md       storage-architecture.md
+ceph-teardown.md           Prerequisites
+example-configurations.md  quickstart.md
+app-builds/rook/rook/Documentation/Getting-Started/ceph-storage:
+'Rook High-Level Architecture.drawio'  'Rook High-Level Architecture.png'
+app-builds/rook/rook/Documentation/Getting-Started/Prerequisites:
+authenticated-registry.md  prerequisites.md
+app-builds/rook/rook/Documentation/Helm-Charts:
+ceph-cluster-chart.gotmpl.md  helm-charts.md            operator-chart.md
+ceph-cluster-chart.md         operator-chart.gotmpl.md  _templates.gotmpl
+app-builds/rook/rook/Documentation/media:
+logo.svg
+app-builds/rook/rook/Documentation/Storage-Configuration:
+Advanced           Ceph-CSI          Monitoring  Object-Storage-RGW
+Block-Storage-RBD  ceph-teardown.md  NFS         Shared-Filesystem-CephFS
+app-builds/rook/rook/Documentation/Storage-Configuration/Advanced:
+ceph-configuration.md  ceph-osd-mgmt.md       configuration.md
+ceph-mon-health.md     cephx-key-rotation.md  key-management-system.md
+app-builds/rook/rook/Documentation/Storage-Configuration/Block-Storage-RBD:
+app-migration.md  rbd-async-disaster-recovery-failover-failback.md
+block-storage.md  rbd-mirroring.md
+migration
+app-builds/rook/rook/Documentation/Storage-Configuration/Block-Storage-RBD/migration:
+app-migration.png
+app-builds/rook/rook/Documentation/Storage-Configuration/Ceph-CSI:
+ceph-csi-drivers.md   ceph-csi-volume-clone.md           custom-images.md
+ceph-csi-snapshot.md  ceph-csi-volume-group-snapshot.md
+app-builds/rook/rook/Documentation/Storage-Configuration/Monitoring:
+ceph-dashboard  ceph-dashboard.md  ceph-monitoring  ceph-monitoring.md
+app-builds/rook/rook/Documentation/Storage-Configuration/Monitoring/ceph-dashboard:
+ceph-dashboard.png
+app-builds/rook/rook/Documentation/Storage-Configuration/Monitoring/ceph-monitoring:
+prometheus-execute-metric-cursor.png  prometheus-metric-cursor.png
+prometheus-graph.png                  prometheus-monitor.png
+prometheus-metric-cursor-graph.png
+app-builds/rook/rook/Documentation/Storage-Configuration/NFS:
+nfs-advanced.md  nfs-csi-driver.md  nfs.md  nfs-security.md
+app-builds/rook/rook/Documentation/Storage-Configuration/Object-Storage-RGW:
+ceph-object-bucket-claim.md          ceph-object-swift.md
+ceph-object-bucket-notifications.md  cosi.md
+ceph-object-multisite.md             object-storage.md
+app-builds/rook/rook/Documentation/Storage-Configuration/Shared-Filesystem-CephFS:
+filesystem-mirroring.md  filesystem-storage.md
+app-builds/rook/rook/Documentation/stylesheets:
+extra.css
+app-builds/rook/rook/Documentation/Troubleshooting:
+ceph-common-issues.md      common-issues.md      kubectl-plugin.md
+ceph-csi-common-issues.md  direct-tools.md       openshift-common-issues.md
+ceph-toolbox.md            disaster-recovery.md  performance-profiling.md
+app-builds/rook/rook/Documentation/Upgrade:
+ceph-upgrade.md  health-verification.md  node-maintenance.md  rook-upgrade.md
+app-builds/rook/rook/images:
+ceph  image.mk  Makefile
+app-builds/rook/rook/images/ceph:
+Dockerfile  Makefile  set-ceph-debug-level  toolbox.sh
+app-builds/rook/rook/pkg:
+apis  client  clusterd  daemon  operator  util  version
+app-builds/rook/rook/pkg/apis:
+ceph.rook.io  go.mod  go.sum
+app-builds/rook/rook/pkg/apis/ceph.rook.io:
+register.go  v1
+app-builds/rook/rook/pkg/apis/ceph.rook.io/v1:
+annotations.go       nfs_test.go              security_test.go
+annotations_test.go  object.go                spec_test.go
+cleanup.go           object_test.go           status.go
+cluster.go           placement.go             status_test.go
+doc.go               placement_test.go        storage.go
+filesystem.go        pool.go                  storage_test.go
+keys.go              pool_test.go             topic.go
+labels.go            priorityclasses.go       topic_test.go
+labels_test.go       priorityclasses_test.go  types.go
+mirror.go            register.go              volume.go
+namespace.go         resources.go             volume_test.go
+network.go           scc.go                   zz_generated.deepcopy.go
+network_test.go      scc_test.go
+nfs.go               security.go
+app-builds/rook/rook/pkg/client:
+clientset  informers  listers
+app-builds/rook/rook/pkg/client/clientset:
+versioned
+app-builds/rook/rook/pkg/client/clientset/versioned:
+clientset.go  fake  scheme  typed
+app-builds/rook/rook/pkg/client/clientset/versioned/fake:
+clientset_generated.go  doc.go  register.go
+app-builds/rook/rook/pkg/client/clientset/versioned/scheme:
+doc.go  register.go
+app-builds/rook/rook/pkg/client/clientset/versioned/typed:
+ceph.rook.io
+app-builds/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io:
+v1
+app-builds/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1:
+cephblockpool.go                 cephobjectrealm.go
+cephblockpoolradosnamespace.go   cephobjectstore.go
+cephbucketnotification.go        cephobjectstoreuser.go
+cephbuckettopic.go               cephobjectzone.go
+cephclient.go                    cephobjectzonegroup.go
+cephcluster.go                   cephrbdmirror.go
+cephcosidriver.go                ceph.rook.io_client.go
+cephfilesystem.go                doc.go
+cephfilesystemmirror.go          fake
+cephfilesystemsubvolumegroup.go  generated_expansion.go
+cephnfs.go
+app-builds/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1/fake:
+doc.go                               fake_cephfilesystemsubvolumegroup.go
+fake_cephblockpool.go                fake_cephnfs.go
+fake_cephblockpoolradosnamespace.go  fake_cephobjectrealm.go
+fake_cephbucketnotification.go       fake_cephobjectstore.go
+fake_cephbuckettopic.go              fake_cephobjectstoreuser.go
+fake_cephclient.go                   fake_cephobjectzone.go
+fake_cephcluster.go                  fake_cephobjectzonegroup.go
+fake_cephcosidriver.go               fake_cephrbdmirror.go
+fake_cephfilesystem.go               fake_ceph.rook.io_client.go
+fake_cephfilesystemmirror.go
+app-builds/rook/rook/pkg/client/informers:
+externalversions
+app-builds/rook/rook/pkg/client/informers/externalversions:
+ceph.rook.io  factory.go  generic.go  internalinterfaces
+app-builds/rook/rook/pkg/client/informers/externalversions/ceph.rook.io:
+interface.go  v1
+app-builds/rook/rook/pkg/client/informers/externalversions/ceph.rook.io/v1:
+cephblockpool.go                cephfilesystemsubvolumegroup.go
+cephblockpoolradosnamespace.go  cephnfs.go
+cephbucketnotification.go       cephobjectrealm.go
+cephbuckettopic.go              cephobjectstore.go
+cephclient.go                   cephobjectstoreuser.go
+cephcluster.go                  cephobjectzone.go
+cephcosidriver.go               cephobjectzonegroup.go
+cephfilesystem.go               cephrbdmirror.go
+cephfilesystemmirror.go         interface.go
+app-builds/rook/rook/pkg/client/informers/externalversions/internalinterfaces:
+factory_interfaces.go
+app-builds/rook/rook/pkg/client/listers:
+ceph.rook.io
+app-builds/rook/rook/pkg/client/listers/ceph.rook.io:
+v1
+app-builds/rook/rook/pkg/client/listers/ceph.rook.io/v1:
+cephblockpool.go                cephfilesystemsubvolumegroup.go
+cephblockpoolradosnamespace.go  cephnfs.go
+cephbucketnotification.go       cephobjectrealm.go
+cephbuckettopic.go              cephobjectstore.go
+cephclient.go                   cephobjectstoreuser.go
+cephcluster.go                  cephobjectzone.go
+cephcosidriver.go               cephobjectzonegroup.go
+cephfilesystem.go               cephrbdmirror.go
+cephfilesystemmirror.go         expansion_generated.go
+app-builds/rook/rook/pkg/clusterd:
+context.go  disk.go  disk_test.go
+app-builds/rook/rook/pkg/daemon:
+ceph  discover  multus  util
+app-builds/rook/rook/pkg/daemon/ceph:
+cleanup  client  osd  util
+app-builds/rook/rook/pkg/daemon/ceph/cleanup:
+disk.go       radosnamespace.go       subvolumegroups_test.go
+disk_test.go  radosnamespace_test.go
+hostpath.go   subvolumegroups.go
+app-builds/rook/rook/pkg/daemon/ceph/client:
+auth.go                       filesystem.go              osd.go
+command.go                    filesystem_mirror.go       osd_test.go
+command_test.go               filesystem_mirror_test.go  pool.go
+config.go                     filesystem_test.go         pool_test.go
+config_test.go                image.go                   rados.go
+crash.go                      image_test.go              radosnamespace.go
+crash_test.go                 info.go                    rados_test.go
+crush.go                      keyring.go                 status.go
+crush_rule.go                 mgr.go                     status_test.go
+crush_rule_test.go            mgr_test.go                subvolumegroup.go
+crush_test.go                 mirror.go                  subvolumegroup_test.go
+deviceclass.go                mirror_health.go           test
+deviceclass_test.go           mirror_health_test.go      upgrade.go
+erasure-code-profile.go       mirror_test.go             upgrade_test.go
+erasure-code-profile_test.go  mon.go
+fake                          mon_test.go
+app-builds/rook/rook/pkg/daemon/ceph/client/fake:
+osd.go
+app-builds/rook/rook/pkg/daemon/ceph/client/test:
+info.go  mon.go
+app-builds/rook/rook/pkg/daemon/ceph/osd:
+agent.go        device_test.go      key_rotation.go  remove.go
+daemon.go       encryption.go       kms              remove_test.go
+daemon_test.go  encryption_test.go  nsenter.go       volume.go
+device.go       init.go             nsenter_test.go  volume_test.go
+app-builds/rook/rook/pkg/daemon/ceph/osd/kms:
+azure.go            ibm_key_protect_test.go  kms.go         volumes.go
+azure_test.go       k8s.go                   kms_test.go    volumes_test.go
+envs.go             k8s_test.go              vault_api.go
+envs_test.go        kmip.go                  vault.go
+ibm_key_protect.go  kmip_test.go             vault_test.go
+app-builds/rook/rook/pkg/daemon/ceph/util:
+util.go
+app-builds/rook/rook/pkg/daemon/discover:
+discover.go  discover_test.go
+app-builds/rook/rook/pkg/daemon/multus:
+client-daemonset.yaml  image-pull-daemonset.yaml  statemachine.go
+config.go              nginx-config.yaml          templates.go
+config_test.go         nginx-pod.yaml             util.go
+config.yaml            resources.go               validation.go
+host-daemonset.yaml    resources_test.go
+app-builds/rook/rook/pkg/daemon/util:
+cmdreporter.go  cmdreporter_test.go
+app-builds/rook/rook/pkg/operator:
+ceph  discover  k8sutil  test
+app-builds/rook/rook/pkg/operator/ceph:
+client      controller.go       disruption  operator.go       reporting
+cluster     controller_test.go  file        operator_test.go  test
+config      cr_manager.go       nfs         pool              version
+controller  csi                 object      predicate.go
+app-builds/rook/rook/pkg/operator/ceph/client:
+controller.go  controller_test.go
+app-builds/rook/rook/pkg/operator/ceph/cluster:
+cephstatus.go             controller.go       predicate.go
+cephstatus_test.go        controller_test.go  predicate_test.go
+cephx.go                  dependents.go       rbd
+cephx_test.go             dependents_test.go  telemetry
+cleanup.go                mgr                 utils.go
+cleanup_test.go           mon                 utils_test.go
+cluster_external.go       monitoring.go       version.go
+cluster_external_test.go  monitoring_test.go  version_test.go
+cluster.go                nodedaemon          watcher.go
+cluster_test.go           osd                 watcher_test.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/mgr:
+config.go          drain.go       mgr_test.go           spec.go
+dashboard.go       drain_test.go  orchestrator.go       spec_test.go
+dashboard_test.go  mgr.go         orchestrator_test.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/mon:
+config.go      endpoint_test.go  mon.go        predicate.go       spec.go
+drain.go       env.go            mon_test.go   predicate_test.go  spec_test.go
+drain_test.go  health.go         node.go       service.go         util.go
+endpoint.go    health_test.go    node_test.go  service_test.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/nodedaemon:
+add.go       crash_test.go     keyring.go       pruner_test.go
+add_test.go  exporter.go       keyring_test.go  reconcile.go
+crash.go     exporter_test.go  pruner.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/osd:
+config             envs_test.go          migrate.go         status_test.go
+config.go          health.go             migrate_test.go    topology
+config_test.go     health_test.go        osd.go             update.go
+create.go          integration_test.go   osd_test.go        update_test.go
+create_test.go     key_rotation.go       provision_spec.go  volumes.go
+deviceSet.go       key_rotation_test.go  spec.go            volumes_test.go
+deviceset_test.go  labels.go             spec_test.go
+envs.go            labels_test.go        status.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/osd/config:
+config.go  scheme.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/osd/topology:
+topology.go  topology_test.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/rbd:
+config.go       controller.go       mirror.go  spec_test.go
+config_test.go  controller_test.go  spec.go
+app-builds/rook/rook/pkg/operator/ceph/cluster/telemetry:
+telemetry.go
+app-builds/rook/rook/pkg/operator/ceph/config:
+config.go       datapath_test.go  monstore.go       probes_test.go
+config_test.go  defaults.go       monstore_test.go  store.go
+datapath.go     keyring           probes.go         store_test.go
+app-builds/rook/rook/pkg/operator/ceph/config/keyring:
+admin.go       cephx.go       store.go       volume.go
+admin_test.go  cephx_test.go  store_test.go
+app-builds/rook/rook/pkg/operator/ceph/controller:
+cleanup.go                finalizer_test.go    object_operations.go
+cleanup_test.go           handler.go           owner.go
+cluster_info.go           handler_test.go      owner_test.go
+cluster_info_test.go      label.go             predicate.go
+conditions.go             mirror_peer.go       predicate_test.go
+controller_utils.go       mirror_peer_test.go  spec.go
+controller_utils_test.go  network.go           spec_test.go
+finalizer.go              network_test.go      version.go
+app-builds/rook/rook/pkg/operator/ceph/csi:
+ceph_config.go           controller_test.go       predicate_test.go
+ceph_config_test.go      csidriver.go             secrets.go
+ceph_connection.go       csi.go                   secrets_test.go
+ceph_connection_test.go  operator_config.go       spec.go
+cluster_config.go        operator_config_test.go  spec_test.go
+cluster_config_test.go   operator_driver.go       template
+config.go                operator_driver_test.go  util.go
+config_test.go           peermap                  util_test.go
+controller.go            predicate.go
+app-builds/rook/rook/pkg/operator/ceph/csi/peermap:
+config.go  config_test.go
+app-builds/rook/rook/pkg/operator/ceph/csi/template:
+cephfs  csi-logrotate-sidecar.yaml  nfs  rbd
+app-builds/rook/rook/pkg/operator/ceph/csi/template/cephfs:
+csi-cephfsplugin-provisioner-dep.yaml  csi-cephfsplugin.yaml
+csi-cephfsplugin-svc.yaml
+app-builds/rook/rook/pkg/operator/ceph/csi/template/nfs:
+csi-nfsplugin-provisioner-dep.yaml  csi-nfsplugin.yaml
+app-builds/rook/rook/pkg/operator/ceph/csi/template/rbd:
+csi-rbdplugin-provisioner-dep.yaml  csi-rbdplugin-svc.yaml  csi-rbdplugin.yaml
+app-builds/rook/rook/pkg/operator/ceph/disruption:
+clusterdisruption  controllerconfig
+app-builds/rook/rook/pkg/operator/ceph/disruption/clusterdisruption:
+add.go  osd.go       pools.go       reconcile.go       static_pdb.go
+doc.go  osd_test.go  pools_test.go  reconcile_test.go
+app-builds/rook/rook/pkg/operator/ceph/disruption/controllerconfig:
+context.go  toleration.go  toleration_test.go
+app-builds/rook/rook/pkg/operator/ceph/file:
+controller.go       dependent_test.go   health.go  status.go
+controller_test.go  filesystem.go       mds        subvolumegroup
+dependent.go        filesystem_test.go  mirror
+app-builds/rook/rook/pkg/operator/ceph/file/mds:
+config.go       livenessprobe.go  livenessprobe_test.go  spec.go       test
+config_test.go  livenessprobe.sh  mds.go                 spec_test.go
+app-builds/rook/rook/pkg/operator/ceph/file/mds/test:
+ 0FS-2MDS.json   1FS-2MDS.json       '2FS-(0,2)MDS.json'  '2FS-(2,2)MDS.json'
+ 0FS.json       '2FS-(0,0)MDS.json'  '2FS-(1,2)MDS.json'
+app-builds/rook/rook/pkg/operator/ceph/file/mirror:
+config.go  controller.go  controller_test.go  mirror.go  spec.go  spec_test.go
+app-builds/rook/rook/pkg/operator/ceph/file/subvolumegroup:
+controller.go  controller_test.go
+app-builds/rook/rook/pkg/operator/ceph/nfs:
+config.go      controller_test.go  nfs_test.go  security_test.go  spec_test.go
+controller.go  nfs.go              security.go  spec.go
+app-builds/rook/rook/pkg/operator/ceph/object:
+admin.go            cosi                  policy.go             spec.go
+admin_mock.go       dependents.go         realm                 spec_test.go
+admin_test.go       dependents_test.go    rgw.go                status.go
+bucket              json_helpers.go       rgw-probe.sh          status_test.go
+bucket.go           json_helpers_test.go  rgw_test.go           topic
+config.go           mime.go               s3-handlers.go        user
+config_test.go      notification          s3-handlers_test.go   user.go
+controller.go       objectstore.go        shared_pools.go       zone
+controller_test.go  objectstore_test.go   shared_pools_test.go  zonegroup
+app-builds/rook/rook/pkg/operator/ceph/object/bucket:
+controller.go       predicate.go    provisioner_test.go  rgw-handlers_test.go
+controller_test.go  provisioner.go  rgw-handlers.go      util.go
+app-builds/rook/rook/pkg/operator/ceph/object/cosi:
+controller.go  controller_test.go  spec.go
+app-builds/rook/rook/pkg/operator/ceph/object/notification:
+controller.go       obc_label_controller.go       provisioner.go
+controller_test.go  obc_label_controller_test.go  s3ext.go
+app-builds/rook/rook/pkg/operator/ceph/object/realm:
+controller.go  controller_test.go
+app-builds/rook/rook/pkg/operator/ceph/object/topic:
+controller.go  controller_test.go  provisioner.go  provisioner_test.go
+app-builds/rook/rook/pkg/operator/ceph/object/user:
+controller.go  controller_test.go
+app-builds/rook/rook/pkg/operator/ceph/object/zone:
+controller.go  controller_test.go  dependents.go  dependents_test.go
+app-builds/rook/rook/pkg/operator/ceph/object/zonegroup:
+controller.go  controller_test.go  zonegroup.go
+app-builds/rook/rook/pkg/operator/ceph/pool:
+controller.go       dependents_test.go  status.go       validate_test.go
+controller_test.go  peers.go            status_test.go
+dependents.go       radosnamespace      validate.go
+app-builds/rook/rook/pkg/operator/ceph/pool/radosnamespace:
+controller.go  controller_test.go
+app-builds/rook/rook/pkg/operator/ceph/reporting:
+reporting.go  reporting_test.go  status.go  status_test.go
+app-builds/rook/rook/pkg/operator/ceph/test:
+container.go  containers.go  info.go  podspec.go  podtemplatespec.go  spec.go
+app-builds/rook/rook/pkg/operator/ceph/version:
+version.go  version_test.go
+app-builds/rook/rook/pkg/operator/discover:
+discover.go  discover_test.go
+app-builds/rook/rook/pkg/operator/k8sutil:
+cmdreporter         k8sutil.go       node_test.go        resources_test.go
+configmap.go        k8sutil_test.go  options.go          secret.go
+configmap_test.go   kvstore.go       patcher.go          secret_test.go
+customresource.go   kvstore_test.go  pod.go              service.go
+daemonset.go        labels.go        pod_test.go         service_test.go
+delete.go           labels_test.go   prometheus.go       status.go
+delete_test.go      name.go          prometheus_test.go  taints.go
+deployment.go       name_test.go     pvc.go              test
+deployment_test.go  network.go       pvc_test.go         tolerations.go
+endpoint.go         network_test.go  replicaset.go       volume.go
+job.go              node.go          resources.go        volume_test.go
+app-builds/rook/rook/pkg/operator/k8sutil/cmdreporter:
+cmdreporter.go
+app-builds/rook/rook/pkg/operator/k8sutil/test:
+deployment.go
+app-builds/rook/rook/pkg/operator/test:
+client.go      env.go       podspec.go          spec.go       volumes.go
+containers.go  env_test.go  podtemplatespec.go  spec_test.go  volumes_test.go
+app-builds/rook/rook/pkg/util:
+dependents  error.go  file.go  logging.go       retry.go
+display     exec      flags    logging_test.go  sys
+app-builds/rook/rook/pkg/util/dependents:
+dependents.go  dependents_test.go
+app-builds/rook/rook/pkg/util/display:
+bytes.go  bytes_test.go
+app-builds/rook/rook/pkg/util/exec:
+error.go       exec.go      exec_test.go  test
+error_test.go  exec_pod.go  log.go        translate_exec.go
+app-builds/rook/rook/pkg/util/exec/test:
+mockexec.go
+app-builds/rook/rook/pkg/util/flags:
+flags.go  flags_test.go
+app-builds/rook/rook/pkg/util/sys:
+device.go  device_test.go  kmod.go  log.go  parse.go  parse_test.go
+app-builds/rook/rook/pkg/version:
+version.go
+app-builds/rook/rook/tests:
+external-cluster  framework  integration  manifests  scripts
+app-builds/rook/rook/tests/external-cluster:
+ceph-status-out  external-config.ini
+app-builds/rook/rook/tests/framework:
+clients  installer  utils
+app-builds/rook/rook/tests/framework/clients:
+block.go   cluster.go     nfs.go           object_user.go  read_write.go
+bucket.go  cosi.go        notification.go  pool.go         test_client.go
+client.go  filesystem.go  object.go        rbd-mirror.go   topic.go
+app-builds/rook/rook/tests/framework/installer:
+ceph_helm_installer.go      ceph_settings.go      installer.go
+ceph_installer.go           device.go             provisioners.go
+ceph_manifests.go           environment.go        settings.go
+ceph_manifests_previous.go  general_manifests.go
+app-builds/rook/rook/tests/framework/utils:
+env.go         helm_helper.go  retry.go     storage.go
+exec_utils.go  k8s_helper.go   snapshot.go
+app-builds/rook/rook/tests/integration:
+ceph_auth_keystone_test.go        ceph_cosi_test.go
+ceph_base_block_test.go           ceph_helm_test.go
+ceph_base_deploy_test.go          ceph_mgr_test.go
+ceph_base_file_test.go            ceph_multi_cluster_test.go
+ceph_base_keystone_test.go        ceph_object_test.go
+ceph_base_nfs_test.go             ceph_smoke_test.go
+ceph_base_object_test.go          ceph_upgrade_test.go
+ceph_bucket_notification_test.go  object
+app-builds/rook/rook/tests/integration/object:
+bucketowner  topic  user  util
+app-builds/rook/rook/tests/integration/object/bucketowner:
+bucketowner.go
+app-builds/rook/rook/tests/integration/object/topic:
+kafka
+app-builds/rook/rook/tests/integration/object/topic/kafka:
+kafka.go
+app-builds/rook/rook/tests/integration/object/user:
+userkeys
+app-builds/rook/rook/tests/integration/object/user/userkeys:
+userkeys.go
+app-builds/rook/rook/tests/integration/object/util:
+admin  s3  sns
+app-builds/rook/rook/tests/integration/object/util/admin:
+admin.go
+app-builds/rook/rook/tests/integration/object/util/s3:
+s3.go
+app-builds/rook/rook/tests/integration/object/util/sns:
+sns.go
+app-builds/rook/rook/tests/manifests:
+test-cluster-on-pvc-encrypted.yaml  test-kms-vault-spec-token-auth.yaml
+test-fs-mirror-spec.yaml            test-kms-vault.yaml
+test-kms-ibm-kp-secret.in           test-object.yaml
+test-kms-ibm-kp-spec.in             test-on-pvc-db.yaml
+test-kms-vault-spec-k8s-auth.yaml   test-on-pvc-wal.yaml
+app-builds/rook/rook/tests/scripts:
+auto-grow-storage.sh            localPathPV.sh
+build-release.sh                loopDevicePV.sh
+collect-logs.sh                 markdownlint-admonitions.js
+create-bluestore-partitions.sh  markdownlint-tab-spacing.js
+create-dev-cluster.sh           multi-node
+csiaddons.sh                    multus
+deploy-validate-vault.sh        pythonwebserver
+generate-tls-config.sh          tmate-pod.yaml
+gen_release_notes.sh            validate_cluster.sh
+github-action-helper.sh         validate_modified_files.sh
+kubeadm-install.sh
+app-builds/rook/rook/tests/scripts/multi-node:
+build-rook.sh  config.rb  rpm-system-prerequisites.sh
+app-builds/rook/rook/tests/scripts/multus:
+default-public-cluster-nads.yaml    test-200-stretch-label-nodes.sh
+host-cfg-ds.yaml                    test-200-stretch-taint-nodes.sh
+kind-config.yaml                    test-210-stretch-overlap.sh
+rook-ceph-public-cluster-nads.yaml  test-211-stretch-cleanup.sh
+setup-multus.sh                     test-220-stretch-pub-and-cluster.sh
+stretch.yaml                        test-230-stretch-pub-only.sh
+test-110-cli.sh                     test-240-stretch-cluster-only.sh
+app-builds/rook/rook/tests/scripts/pythonwebserver:
+Dockerfile  server.py
